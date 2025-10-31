@@ -1,0 +1,85 @@
+<%# 
+Pagination Component
+Parameters:
+- currentPage: Current page number (default: 1)
+- totalPages: Total number of pages
+- total: Total number of items
+- perPage: Items per page (default: 10)
+- onPageChange: JavaScript function or HTMX trigger (optional)
+- className: Additional CSS classes
+%>
+<%
+const paginationId = id || 'pagination';
+const current = parseInt(currentPage) || 1;
+const total = parseInt(totalPages) || 1;
+const totalItems = parseInt(total) || 0;
+const itemsPerPage = parseInt(perPage) || 10;
+const startItem = (current - 1) * itemsPerPage + 1;
+const endItem = Math.min(current * itemsPerPage, totalItems);
+const actualTableId = (typeof tableId !== 'undefined' && tableId) ? tableId : paginationId.replace('Pagination', 'Table');
+const paginationClassName = typeof className !== 'undefined' ? className : '';
+%>
+
+<div class="pagination-wrapper <%= paginationClassName %>" id="<%= paginationId %>">
+    <div class="pagination-info">
+        <span>
+            <%= startItem %>-<%= endItem %> / <%= totalItems %> kayıt
+        </span>
+    </div>
+    
+    <div class="pagination-controls">
+        <% if (current > 1) { %>
+        <button 
+            class="pagination-btn"
+            onclick="loadTablePage('<%= actualTableId %>', <%= current - 1 %>)">
+            ‹ Önceki
+        </button>
+        <% } else { %>
+        <button class="pagination-btn disabled" disabled>‹ Önceki</button>
+        <% } %>
+        
+        <div class="pagination-pages">
+            <% 
+            const maxPages = 7;
+            let startPage = Math.max(1, current - Math.floor(maxPages / 2));
+            let endPage = Math.min(total, startPage + maxPages - 1);
+            if (endPage - startPage < maxPages - 1) {
+                startPage = Math.max(1, endPage - maxPages + 1);
+            }
+            %>
+            
+            <% if (startPage > 1) { %>
+            <button class="pagination-btn" onclick="loadTablePage('<%= actualTableId %>', 1)">1</button>
+            <% if (startPage > 2) { %>
+            <span class="pagination-ellipsis">...</span>
+            <% } %>
+            <% } %>
+            
+            <% for (let i = startPage; i <= endPage; i++) { %>
+            <button 
+                class="pagination-btn <%= i === current ? 'active' : '' %>"
+                onclick="loadTablePage('<%= actualTableId %>', <%= i %>)">
+                <%= i %>
+            </button>
+            <% } %>
+            
+            <% if (endPage < total) { %>
+            <% if (endPage < total - 1) { %>
+            <span class="pagination-ellipsis">...</span>
+            <% } %>
+            <button class="pagination-btn" onclick="loadTablePage('<%= actualTableId %>', <%= total %>)"><%= total %></button>
+            <% } %>
+        </div>
+        
+        <% if (current < total) { %>
+        <button 
+            class="pagination-btn"
+            onclick="loadTablePage('<%= actualTableId %>', <%= current + 1 %>)">
+            Sonraki ›
+        </button>
+        <% } else { %>
+        <button class="pagination-btn disabled" disabled>Sonraki ›</button>
+        <% } %>
+    </div>
+</div>
+

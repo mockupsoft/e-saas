@@ -16,7 +16,7 @@ Parameters:
 
 <div class="form-group">
     <% if (typeof label !== 'undefined' && label) { %>
-    <label class="form-label" for="<%= id || name %>">
+    <label class="form-label" for="<%= typeof id !== 'undefined' ? id : (typeof name !== 'undefined' ? name : 'field') %>">
         <%= label %>
         <% if (typeof required !== 'undefined' && required) { %><span class="required">*</span><% } %>
     </label>
@@ -26,7 +26,7 @@ Parameters:
     <select 
         class="form-select <%= typeof error !== 'undefined' && error ? 'form-error-input' : '' %>"
         name="<%= name %>"
-        id="<%= id || name %>"
+        id="<%= typeof id !== 'undefined' ? id : (typeof name !== 'undefined' ? name : 'field') %>"
         <% if (typeof required !== 'undefined' && required) { %>required<% } %>
         <% if (typeof attributes !== 'undefined' && attributes) { %>
             <% Object.keys(attributes).forEach(function(attr) { %>
@@ -49,7 +49,7 @@ Parameters:
     <textarea 
         class="form-textarea <%= typeof error !== 'undefined' && error ? 'form-error-input' : '' %>"
         name="<%= name %>"
-        id="<%= id || name %>"
+        id="<%= typeof id !== 'undefined' ? id : (typeof name !== 'undefined' ? name : 'field') %>"
         <% if (typeof placeholder !== 'undefined' && placeholder) { %>placeholder="<%= placeholder %>"<% } %>
         <% if (typeof required !== 'undefined' && required) { %>required<% } %>
         <% if (typeof attributes !== 'undefined' && attributes) { %>
@@ -63,7 +63,7 @@ Parameters:
         class="form-input <%= typeof error !== 'undefined' && error ? 'form-error-input' : '' %>"
         type="<%= typeof type !== 'undefined' ? type : 'text' %>"
         name="<%= name %>"
-        id="<%= id || name %>"
+        id="<%= typeof id !== 'undefined' ? id : (typeof name !== 'undefined' ? name : 'field') %>"
         <% if (typeof value !== 'undefined' && value) { %>value="<%= value %>"<% } %>
         <% if (typeof placeholder !== 'undefined' && placeholder) { %>placeholder="<%= placeholder %>"<% } %>
         <% if (typeof required !== 'undefined' && required) { %>required<% } %>

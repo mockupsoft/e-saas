@@ -3,12 +3,12 @@ Component Include Helper
 Helper functions for including components with proper parameters
 
 Usage in templates:
-<%- include('../partials/components/modal', { 
+include('../partials/components/modal', { 
     id: 'myModal', 
     title: 'Title', 
     content: '<p>Content</p>',
     buttons: [{text: 'Save', type: 'submit', class: 'btn-primary'}]
-}) %>
+})
 %>
 
 <%

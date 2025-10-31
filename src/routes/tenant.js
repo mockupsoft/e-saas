@@ -10,6 +10,8 @@ const Order = require('../models/Order');
 const Affiliate = require('../models/Affiliate');
 const AffiliateSale = require('../models/AffiliateSale');
 const { generateNavigationMenu } = require('../utils/menuComponent');
+const ProductController = require('../controllers/ProductController');
+const OrderController = require('../controllers/OrderController');
 const multer = require('multer');
 const path = require('path');
 
@@ -772,81 +774,20 @@ router.delete('/api/affiliates/:id', async (req, res) => {
     }
 });
 
-// 🔗 Order API Routes
+// 🔗 Order API Routes - Using OrderController
 // ===============================
 
-// GET /tenant/api/orders - Sipariş listesi API
-router.get('/api/orders', async (req, res) => {
-    try {
-        const tenant = req.tenant;
-        if (!tenant) {
-            return res.status(400).json({
-                success: false,
-                error: 'TENANT_REQUIRED',
-                message: 'Tenant bilgileri bulunamadı.'
-            });
-        }
+// GET /tenant/api/orders - List orders with filtering, sorting, pagination
+router.get('/api/orders', OrderController.getAll);
 
-        const orders = await Order.getAllOrders(tenant.db_name);
+// GET /tenant/api/orders/:id - Get single order
+router.get('/api/orders/:id', OrderController.getById);
 
-        res.json({
-            success: true,
-            data: {
-                orders: orders,
-                total: orders.length
-            },
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Sipariş listesi API hatası:', error.message);
-        res.status(500).json({
-            success: false,
-            error: 'ORDERS_API_ERROR',
-            message: 'Sipariş listesi alınamadı.',
-            timestamp: new Date().toISOString()
-        });
-    }
-});
+// PUT /tenant/api/orders/:id/status - Update order status
+router.put('/api/orders/:id/status', OrderController.updateStatus);
 
-// GET /tenant/api/orders/:id - Sipariş detay API
-router.get('/api/orders/:id', async (req, res) => {
-    try {
-        const tenant = req.tenant;
-        const { id } = req.params;
-
-        if (!tenant) {
-            return res.status(400).json({
-                success: false,
-                error: 'TENANT_REQUIRED',
-                message: 'Tenant bilgileri bulunamadı.'
-            });
-        }
-
-        const order = await Order.findById(tenant.db_name, parseInt(id));
-
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                error: 'ORDER_NOT_FOUND',
-                message: 'Sipariş bulunamadı.'
-            });
-        }
-
-        res.json({
-            success: true,
-            data: { order: order },
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Sipariş detay API hatası:', error.message);
-        res.status(500).json({
-            success: false,
-            error: 'ORDER_DETAIL_ERROR',
-            message: 'Sipariş detayı alınamadı.',
-            timestamp: new Date().toISOString()
-        });
-    }
-});
+// PUT /tenant/api/orders/:id - Update order (full update)
+router.put('/api/orders/:id', OrderController.update);
 
 // POST /tenant/api/orders - Yeni sipariş oluştur
 router.post('/api/orders', async (req, res) => {
@@ -1347,182 +1288,23 @@ router.delete('/api/customers/:id', async (req, res) => {
     }
 });
 
-// 🔗 Product API Routes
+// 🔗 Product API Routes - Using ProductController
 // ===============================
 
-// GET /tenant/api/products - Ürün listesi API
-router.get('/api/products', async (req, res) => {
-    try {
-        const tenant = req.tenant;
-        if (!tenant) {
-            return res.status(400).json({
-                success: false,
-                error: 'TENANT_REQUIRED',
-                message: 'Tenant bilgileri bulunamadı.'
-            });
-        }
+// GET /tenant/api/products - List products with filtering, sorting, pagination
+router.get('/api/products', ProductController.getAll);
 
-        const Product = require('../models/Product');
-        const products = await Product.getAllProducts(tenant.db_name);
+// GET /tenant/api/products/:id - Get single product
+router.get('/api/products/:id', ProductController.getById);
 
-        res.json({
-            success: true,
-            data: {
-                products: products,
-                total: products.length
-            },
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Ürün listesi API hatası:', error.message);
-        res.status(500).json({
-            success: false,
-            error: 'PRODUCTS_API_ERROR',
-            message: 'Ürün listesi alınamadı.',
-            timestamp: new Date().toISOString()
-        });
-    }
-});
+// POST /tenant/api/products - Create new product
+router.post('/api/products', ProductController.create);
 
-// GET /tenant/api/products/:id - Ürün detay API
-router.get('/api/products/:id', async (req, res) => {
-    try {
-        const tenant = req.tenant;
-        const { id } = req.params;
+// PUT /tenant/api/products/:id - Update product
+router.put('/api/products/:id', ProductController.update);
 
-        if (!tenant) {
-            return res.status(400).json({
-                success: false,
-                error: 'TENANT_REQUIRED',
-                message: 'Tenant bilgileri bulunamadı.'
-            });
-        }
-
-        const Product = require('../models/Product');
-        const product = await Product.findById(tenant.db_name, parseInt(id));
-
-        if (!product) {
-            return res.status(404).json({
-                success: false,
-                error: 'PRODUCT_NOT_FOUND',
-                message: 'Ürün bulunamadı.'
-            });
-        }
-
-        res.json({
-            success: true,
-            data: product,
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Ürün detay API hatası:', error.message);
-        res.status(500).json({
-            success: false,
-            error: 'PRODUCT_DETAIL_ERROR',
-            message: 'Ürün detayı alınamadı.',
-            timestamp: new Date().toISOString()
-        });
-    }
-});
-
-// POST /tenant/api/products - Yeni ürün oluştur
-router.post('/api/products', async (req, res) => {
-    try {
-        const tenant = req.tenant;
-        if (!tenant) {
-            return res.status(400).json({
-                success: false,
-                error: 'TENANT_REQUIRED',
-                message: 'Tenant bilgileri bulunamadı.'
-            });
-        }
-
-        const Product = require('../models/Product');
-        const newProduct = await Product.createProduct(tenant.db_name, req.body);
-
-        res.status(201).json({
-            success: true,
-            data: newProduct,
-            message: 'Ürün başarıyla oluşturuldu.',
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Ürün oluşturma API hatası:', error.message);
-        res.status(500).json({
-            success: false,
-            error: 'PRODUCT_CREATE_ERROR',
-            message: error.message || 'Ürün oluşturulamadı.',
-            timestamp: new Date().toISOString()
-        });
-    }
-});
-
-// PUT /tenant/api/products/:id - Ürün güncelle
-router.put('/api/products/:id', async (req, res) => {
-    try {
-        const tenant = req.tenant;
-        const { id } = req.params;
-
-        if (!tenant) {
-            return res.status(400).json({
-                success: false,
-                error: 'TENANT_REQUIRED',
-                message: 'Tenant bilgileri bulunamadı.'
-            });
-        }
-
-        const Product = require('../models/Product');
-        const updatedProduct = await Product.updateProduct(tenant.db_name, parseInt(id), req.body);
-
-        res.json({
-            success: true,
-            data: updatedProduct,
-            message: 'Ürün başarıyla güncellendi.',
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Ürün güncelleme API hatası:', error.message);
-        res.status(500).json({
-            success: false,
-            error: 'PRODUCT_UPDATE_ERROR',
-            message: error.message || 'Ürün güncellenemedi.',
-            timestamp: new Date().toISOString()
-        });
-    }
-});
-
-// DELETE /tenant/api/products/:id - Ürün sil
-router.delete('/api/products/:id', async (req, res) => {
-    try {
-        const tenant = req.tenant;
-        const { id } = req.params;
-
-        if (!tenant) {
-            return res.status(400).json({
-                success: false,
-                error: 'TENANT_REQUIRED',
-                message: 'Tenant bilgileri bulunamadı.'
-            });
-        }
-
-        const Product = require('../models/Product');
-        await Product.deleteProduct(tenant.db_name, parseInt(id));
-
-        res.json({
-            success: true,
-            message: 'Ürün başarıyla silindi.',
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Ürün silme API hatası:', error.message);
-        res.status(500).json({
-            success: false,
-            error: 'PRODUCT_DELETE_ERROR',
-            message: error.message || 'Ürün silinemedi.',
-            timestamp: new Date().toISOString()
-        });
-    }
-});
+// DELETE /tenant/api/products/:id - Soft delete product
+router.delete('/api/products/:id', ProductController.delete);
 
 // 🔗 Category API Routes
 // ===============================

@@ -1,69 +1,146 @@
 <%# 
-Table Component
+Gelişmiş Table Component
 Parameters:
-- headers: Array of header objects {text, sortable}
-- rows: Array of row data
-- actions: Array of action buttons for each row
-- emptyText: Text to show when no data
+- id: Unique table ID (required)
+- headers: Array of header objects {text, key, sortable?, render?}
+- actions: Array of action buttons {icon, text, action, class, dataKey?}
+- rows: Array of data rows (optional, can be loaded via HTMX)
+- emptyMessage: Text to show when no data
+- sortable: Enable sorting (default: true)
+- searchable: Enable search (default: true)
+- paginated: Enable pagination (default: true)
+- loadUrl: HTMX URL to load table content (optional)
 - className: Additional CSS classes
 %>
+<%
+const tableId = id || 'dataTable';
+const isSortable = typeof sortable !== 'undefined' ? sortable : true;
+const isSearchable = typeof searchable !== 'undefined' ? searchable : true;
+const isPaginated = typeof paginated !== 'undefined' ? paginated : true;
+const paginationIdValue = tableId + 'Pagination';
+const tableClassName = typeof className !== 'undefined' ? className : '';
+%>
 
-<div class="table-container <%= className || '' %>">
-    <table class="data-table">
-        <thead>
-            <tr>
-                <% headers.forEach(function(header) { %>
-                <th <% if (header.sortable) { %>class="sortable"<% } %>>
-                    <%= header.text %>
-                    <% if (header.sortable) { %>
-                    <span class="sort-icon">↕️</span>
-                    <% } %>
-                </th>
-                <% }); %>
-                <% if (typeof actions !== 'undefined' && actions && actions.length > 0) { %>
-                <th>İşlemler</th>
-                <% } %>
-            </tr>
-        </thead>
-        <tbody id="<%= id || 'table' %>-body">
-            <% if (rows && rows.length > 0) { %>
-                <% rows.forEach(function(row) { %>
-                <tr>
-                    <% headers.forEach(function(header) { %>
-                    <td>
-                        <% if (header.render) { %>
-                            <%- header.render(row[header.key], row) %>
-                        <% } else { %>
-                            <%= row[header.key] || '-' %>
+<div class="table-wrapper <%= tableClassName %>" id="<%= tableId %>Wrapper">
+    <% if (isSearchable) { %>
+    <div class="table-controls">
+        <div class="table-search">
+            <input 
+                type="text" 
+                class="search-input" 
+                placeholder="Ara..." 
+                id="<%= tableId %>Search"
+                oninput="searchTable('<%= tableId %>', this.value)">
+            <span class="search-icon">🔍</span>
+        </div>
+    </div>
+    <% } %>
+    
+    <div class="table-container" id="<%= tableId %>Container">
+        <% if (typeof loadUrl !== 'undefined' && loadUrl) { %>
+        <div 
+            hx-get="<%= loadUrl %>" 
+            hx-trigger="load" 
+            hx-target="#<%= tableId %>Wrapper"
+            hx-swap="outerHTML"
+            hx-indicator="#<%= tableId %>Loading">
+            <div id="<%= tableId %>Loading" class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Veriler yükleniyor...</p>
+            </div>
+        </div>
+        <% } %>
+        
+        <div id="<%= tableId %>Content">
+            <table class="data-table" id="<%= tableId %>">
+                <thead>
+                    <tr>
+                        <% headers.forEach(function(header) { %>
+                        <th 
+                            class="<%= header.sortable && isSortable ? 'sortable' : '' %>"
+                            data-key="<%= header.key %>"
+                            <% if (header.sortable && isSortable) { %>
+                            onclick="sortTable('<%= tableId %>', '<%= header.key %>', this)"
+                            <% } %>>
+                            <%= header.text %>
+                            <% if (header.sortable && isSortable) { %>
+                            <span class="sort-icon">↕️</span>
+                            <% } %>
+                        </th>
+                        <% }); %>
+                        
+                        <% if (typeof actions !== 'undefined' && actions && actions.length > 0) { %>
+                        <th class="actions-column">İşlemler</th>
                         <% } %>
-                    </td>
-                    <% }); %>
-                    <% if (typeof actions !== 'undefined' && actions && actions.length > 0) { %>
-                    <td>
-                        <div class="action-buttons">
-                            <% actions.forEach(function(action) { %>
-                            <button 
-                                class="btn-sm <%= action.class || 'btn-outline' %>"
-                                data-action="<%= action.action %>"
-                                <% if (action.dataKey) { %>data-<%= action.dataKey %>="<%= row[action.dataValue] %>"<% } %>>
-                                <%= action.icon %> <%= action.text %>
-                            </button>
+                    </tr>
+                </thead>
+                <tbody id="<%= tableId %>Body">
+                    <% if (typeof rows !== 'undefined' && rows && rows.length > 0) { %>
+                        <% rows.forEach(function(row) { %>
+                        <tr data-id="<%= row.id %>">
+                            <% headers.forEach(function(header) { %>
+                            <td>
+                                <% if (header.renderKey && typeof row._rendered !== 'undefined' && row._rendered[header.renderKey]) { %>
+                                    <%- row._rendered[header.renderKey] %>
+                                <% } else if (typeof header.render !== 'undefined' && header.render) { %>
+                                    <%= typeof header.render === 'function' ? header.render(row[header.key], row) : '' %>
+                                <% } else { %>
+                                    <%= row[header.key] ? row[header.key] : (row[header.key] || '-') %>
+                                <% } %>
+                            </td>
                             <% }); %>
-                        </div>
-                    </td>
+                            
+                            <% if (typeof actions !== 'undefined' && actions && actions.length > 0) { %>
+                            <td class="actions-column">
+                                <div class="action-buttons">
+                                    <% actions.forEach(function(action) { %>
+                                    <button 
+                                        class="btn-sm <%= action.class || 'btn-outline' %>"
+                                        data-action="<%= action.action %>"
+                                        <% if (action.dataKey) { %>data-<%= action.dataKey %>="<%= row[action.dataValue] || row.id %>"<% } %>
+                                        <% if (!action.dataKey) { %>data-id="<%= row.id %>"<% } %>>
+                                        <% if (action.icon) { %><%= action.icon %> <% } %><%= action.text %>
+                                    </button>
+                                    <% }); %>
+                                </div>
+                            </td>
+                            <% } %>
+                        </tr>
+                        <% }); %>
+                    <% } else if (typeof loadUrl === 'undefined') { 
+                        let totalCols = headers ? headers.length : 0;
+                        if (actions && actions.length > 0) totalCols += 1;
+                    %>
+                    <tr>
+                        <td colspan="<%= totalCols %>" class="empty-cell">
+                            <div class="empty-state-mini">
+                                <div class="empty-icon">📄</div>
+                                <p><%= emptyMessage || 'Veri bulunamadı' %></p>
+                            </div>
+                        </td>
+                    </tr>
                     <% } %>
-                </tr>
-                <% }); %>
-            <% } else { %>
-            <tr>
-                <td colspan="<%= headers.length + (actions ? 1 : 0) %>" class="text-center">
-                    <div class="empty-state-mini">
-                        <div class="empty-icon">📄</div>
-                        <p><%= emptyMessage || 'Veri bulunamadı' %></p>
-                    </div>
-                </td>
-            </tr>
-            <% } %>
-        </tbody>
-    </table>
-</div> 
+                </tbody>
+            </table>
+        </div>
+        
+        <% if (isPaginated && typeof pagination !== 'undefined' && pagination) { 
+            const pagCurrentPage = pagination.currentPage || 1;
+            const pagTotalPages = pagination.totalPages || 1;
+            const pagTotal = pagination.total || 0;
+            const pagPerPage = pagination.perPage || 10;
+        %>
+        <div class="table-pagination-wrapper">
+            <%- include('./pagination', {
+                id: paginationIdValue,
+                tableId: tableId,
+                currentPage: pagCurrentPage,
+                totalPages: pagTotalPages,
+                total: pagTotal,
+                perPage: pagPerPage
+            }) %>
+        </div>
+        <% } %>
+    </div>
+</div>
+

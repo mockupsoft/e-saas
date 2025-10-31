@@ -1,0 +1,499 @@
+<%# 
+Filter Bar Component
+Parameters:
+- fields: Array of filter field objects {type, name, label, options?, placeholder?, value?}
+- hxGet: HTMX GET URL for filtering
+- hxTarget: HTMX target selector
+- hxInclude: HTMX include selector (optional)
+- className: Additional CSS classes
+%>
+<%
+const filterBarId = id || 'filterBar';
+const filterClassName = typeof className !== 'undefined' ? className : '';
+%>
+
+<div class="filter-bar <%= filterClassName %>" id="<%= filterBarId %>">
+    <form 
+        class="filter-form"
+        hx-get="<%= hxGet %>"
+        hx-target="<%= hxTarget %>"
+        <% if (typeof hxInclude !== 'undefined' && hxInclude) { %>hx-include="<%= hxInclude %>"<% } %>
+        hx-trigger="submit, change delay:500ms from:select"
+        hx-indicator="#filterLoading">
+        
+        <div class="filter-fields" id="filterFieldsContainer">
+            <% fields.forEach(function(field) { %>
+            <div class="filter-field">
+                <% if (field.type === 'select') { %>
+                    <%- include('./form-group', {
+                        type: 'select',
+                        name: field.name,
+                        label: field.label,
+                        options: field.options || [],
+                        value: field.value || '',
+                        placeholder: field.placeholder || 'Seçiniz...',
+                        attributes: {
+                            'onchange': 'this.form.requestSubmit()'
+                        }
+                    }) %>
+                <% } else if (field.type === 'date' || field.type === 'date-range') { %>
+                    <div class="filter-date-group" id="<%= field.name %>DateGroup">
+                        <% if (field.type === 'date-range') { %>
+                            <!-- Date Range Preset Selector -->
+                            <%- include('./form-group', {
+                                type: 'select',
+                                name: field.name + '_preset',
+                                label: field.label,
+                                options: [
+                                    { value: '', text: 'Tüm Zamanlar' },
+                                    { value: 'today', text: 'Bugün' },
+                                    { value: 'this_week', text: 'Bu Hafta' },
+                                    { value: 'this_month', text: 'Bu Ay' },
+                                    { value: 'this_year', text: 'Bu Yıl' },
+                                    { value: 'custom', text: 'Özel Aralık' }
+                                ],
+                                value: field.presetValue || '',
+                                attributes: {
+                                    'onchange': 'toggleCustomDateRange(\'' + field.name + '\', this.value)',
+                                    'data-field': field.name
+                                }
+                            }) %>
+                            
+                            <!-- Custom Date Range Inputs (Hidden by default) -->
+                            <div class="custom-date-range" id="<%= field.name %>CustomRange" style="display: none; width: 100%; min-width: 300px;">
+                                <div class="date-range-inputs">
+                                    <!-- Direct HTML Input Test -->
+                                    <div class="form-group">
+                                        <label class="form-label" for="<%= field.name %>_from">Başlangıç Tarihi</label>
+                                        <input 
+                                            type="date" 
+                                            class="form-input" 
+                                            name="<%= field.name %>_from" 
+                                            id="<%= field.name %>_from"
+                                            onclick="this.showPicker()" 
+                                            onfocus="this.showPicker()"
+                                            style="display: block !important; width: 100% !important; visibility: visible !important;">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label class="form-label" for="<%= field.name %>_to">Bitiş Tarihi</label>
+                                        <input 
+                                            type="date" 
+                                            class="form-input" 
+                                            name="<%= field.name %>_to" 
+                                            id="<%= field.name %>_to"
+                                            onclick="this.showPicker()" 
+                                            onfocus="this.showPicker()"
+                                            style="display: block !important; width: 100% !important; visibility: visible !important;">
+                                    </div>
+                                </div>
+                            </div>
+                        <% } else { %>
+                            <%- include('./form-group', {
+                                type: 'date',
+                                name: field.name,
+                                label: field.label,
+                                value: field.value || '',
+                                placeholder: field.placeholder || '',
+                                attributes: {
+                                    'onclick': 'this.showPicker()',
+                                    'onfocus': 'this.showPicker()'
+                                }
+                            }) %>
+                        <% } %>
+                    </div>
+                <% } else { %>
+                    <%- include('./form-group', {
+                        type: field.type || 'text',
+                        name: field.name,
+                        label: field.label,
+                        value: field.value || '',
+                        placeholder: field.placeholder || '',
+                        attributes: {
+                            'hx-trigger': 'keyup changed delay:500ms'
+                        }
+                    }) %>
+                <% } %>
+            </div>
+            <% }); %>
+        </div>
+        
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+                🔍 Filtrele
+            </button>
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('<%= filterBarId %>').querySelector('form').reset(); document.getElementById('<%= filterBarId %>').querySelector('form').requestSubmit();">
+                🔄 Temizle
+            </button>
+        </div>
+        
+        <div id="filterLoading" class="htmx-indicator">
+            <span class="spinner-small"></span>
+        </div>
+    </form>
+</div>
+
+<script>
+// Date range preset functionality
+function toggleCustomDateRange(fieldName, presetValue) {
+    console.log('🎯 toggleCustomDateRange called:', fieldName, presetValue);
+    
+    const customRangeDiv = document.getElementById(fieldName + 'CustomRange');
+    const form = document.querySelector('.filter-form');
+    
+    console.log('🔍 DEBUG INFO:');
+    console.log('  fieldName:', fieldName);
+    console.log('  presetValue:', presetValue);
+    console.log('  customRangeDiv:', customRangeDiv);
+    console.log('  customRangeDiv ID:', fieldName + 'CustomRange');
+    
+    if (!customRangeDiv) {
+        console.error('❌ Custom range div not found! Looking for ID:', fieldName + 'CustomRange');
+        // Try to find it differently
+        const allDivs = document.querySelectorAll('[id*="CustomRange"]');
+        console.log('📋 All CustomRange divs found:', allDivs);
+        return;
+    }
+    
+    if (!form) {
+        console.error('❌ Form not found!');
+        return;
+    }
+    
+    console.log('📋 Form found, cleaning fields...');
+    console.log('📋 Custom range div current style:', {
+        display: customRangeDiv.style.display,
+        visibility: customRangeDiv.style.visibility,
+        height: customRangeDiv.offsetHeight,
+        width: customRangeDiv.offsetWidth
+    });
+    
+    // AGGRESSIVE CLEANUP: Remove ALL related fields (both visible and hidden)
+    const allRelatedFields = form.querySelectorAll(`input[name*="${fieldName}"]`);
+    console.log('🧹 Found fields to clean:', allRelatedFields.length);
+    
+    allRelatedFields.forEach((field, index) => {
+        if (field.type === 'hidden' || field.name.includes(fieldName + '_')) {
+            console.log(`🗑️ Removing field ${index}:`, field.name, field.type);
+            field.remove();
+        }
+    });
+    
+    if (presetValue === 'custom') {
+        // Show custom date inputs with force
+        console.log('📅 Showing custom range inputs');
+        
+        // Add class to container to trigger responsive grid
+        const filterFieldsContainer = document.getElementById('filterFieldsContainer');
+        if (filterFieldsContainer) {
+            filterFieldsContainer.classList.add('has-custom-range');
+            console.log('✅ Added has-custom-range class to container');
+        }
+        
+        if (customRangeDiv) {
+            console.log('🔥 AGGRESSIVE HTML INJECTION MODE');
+            
+            // Complete DOM replacement with compact HTML - no background, clean layout
+            customRangeDiv.innerHTML = `
+                <div style="
+                    display: grid !important;
+                    grid-template-columns: 1fr 1fr !important;
+                    gap: 0.75rem !important;
+                    margin-top: 0.5rem !important;
+                    width: 100% !important;
+                    box-sizing: border-box !important;
+                    background: transparent !important;
+                    border: none !important;
+                    padding: 0 !important;
+                ">
+                    <div style="width: 100% !important;">
+                        <label style="
+                            display: block !important;
+                            font-size: 0.65rem !important;
+                            color: #9ca3af !important;
+                            margin-bottom: 0.15rem !important;
+                            font-weight: 400 !important;
+                            text-transform: uppercase !important;
+                            letter-spacing: 0.025em !important;
+                        ">Başlangıç</label>
+                        <input 
+                            type="date" 
+                            name="${fieldName}_from"
+                            class="form-input"
+                            style="
+                                display: block !important;
+                                width: 100% !important;
+                                padding: 0.4rem 0.5rem !important;
+                                border: 1px solid #d1d5db !important;
+                                border-radius: 4px !important;
+                                font-size: 0.8rem !important;
+                                background: white !important;
+                                visibility: visible !important;
+                                opacity: 1 !important;
+                                height: 2.25rem !important;
+                                box-sizing: border-box !important;
+                                transition: border-color 0.15s ease-in-out !important;
+                            "
+                            onclick="this.showPicker()"
+                            onfocus="this.showPicker(); this.style.borderColor='#007cba';"
+                            onblur="this.style.borderColor='#d1d5db';">
+                    </div>
+                    <div style="width: 100% !important;">
+                        <label style="
+                            display: block !important;
+                            font-size: 0.65rem !important;
+                            color: #9ca3af !important;
+                            margin-bottom: 0.15rem !important;
+                            font-weight: 400 !important;
+                            text-transform: uppercase !important;
+                            letter-spacing: 0.025em !important;
+                        ">Bitiş</label>
+                        <input 
+                            type="date" 
+                            name="${fieldName}_to"
+                            class="form-input"
+                            style="
+                                display: block !important;
+                                width: 100% !important;
+                                padding: 0.4rem 0.5rem !important;
+                                border: 1px solid #d1d5db !important;
+                                border-radius: 4px !important;
+                                font-size: 0.8rem !important;
+                                background: white !important;
+                                visibility: visible !important;
+                                opacity: 1 !important;
+                                height: 2.25rem !important;
+                                box-sizing: border-box !important;
+                                transition: border-color 0.15s ease-in-out !important;
+                            "
+                            onclick="this.showPicker()"
+                            onfocus="this.showPicker(); this.style.borderColor='#007cba';"
+                            onblur="this.style.borderColor='#d1d5db';">
+                    </div>
+                </div>
+            `;
+            
+            // Force show the container - clean, no background
+            customRangeDiv.style.setProperty('display', 'block', 'important');
+            customRangeDiv.style.setProperty('visibility', 'visible', 'important');
+            customRangeDiv.style.setProperty('opacity', '1', 'important');
+            customRangeDiv.style.setProperty('height', 'auto', 'important');
+            customRangeDiv.style.setProperty('overflow', 'visible', 'important');
+            customRangeDiv.style.setProperty('position', 'relative', 'important');
+            customRangeDiv.style.setProperty('z-index', '10', 'important');
+            customRangeDiv.style.setProperty('background', 'transparent', 'important');
+            customRangeDiv.style.setProperty('border', 'none', 'important');
+            customRangeDiv.style.setProperty('padding', '0', 'important');
+            
+            console.log('🔥 HTML injected directly into DOM');
+            console.log('📏 Container offsetHeight:', customRangeDiv.offsetHeight);
+            console.log('📏 Container offsetWidth:', customRangeDiv.offsetWidth);
+            
+            // Verify inputs were created
+            setTimeout(() => {
+                const injectedInputs = customRangeDiv.querySelectorAll('input[type="date"]');
+                console.log(`✅ Injected ${injectedInputs.length} date inputs`);
+                injectedInputs.forEach((input, index) => {
+                    console.log(`Input ${index}:`, {
+                        name: input.name,
+                        type: input.type,
+                        visible: input.offsetHeight > 0 && input.offsetWidth > 0
+                    });
+                });
+            }, 100);
+        }
+    } else {
+        // Hide custom date inputs and clear them
+        console.log('📅 Hiding custom range inputs');
+        
+        // Remove class from container to restore normal grid
+        const filterFieldsContainer = document.getElementById('filterFieldsContainer');
+        if (filterFieldsContainer) {
+            filterFieldsContainer.classList.remove('has-custom-range');
+            console.log('🔄 Removed has-custom-range class from container');
+        }
+        
+        if (customRangeDiv) {
+            customRangeDiv.style.display = 'none';
+            customRangeDiv.style.visibility = 'hidden';
+            customRangeDiv.style.maxHeight = '0';
+            customRangeDiv.style.overflow = 'hidden';
+        }
+        
+        // Clear visible inputs
+        const fromInput = customRangeDiv?.querySelector(`input[name="${fieldName}_from"]`);
+        const toInput = customRangeDiv?.querySelector(`input[name="${fieldName}_to"]`);
+        if (fromInput) {
+            fromInput.value = '';
+            console.log('🧹 Cleared from input');
+        }
+        if (toInput) {
+            toInput.value = '';
+            console.log('🧹 Cleared to input');
+        }
+        
+        // Add preset values as hidden fields ONLY if preset is selected
+        if (presetValue && presetValue !== '' && presetValue !== 'custom') {
+            console.log('📅 Adding preset values for:', presetValue);
+            const dateRange = getPresetDateRange(presetValue);
+            console.log('📅 Date range calculated:', dateRange);
+            
+            if (dateRange.from && dateRange.to) {
+                // Create clean hidden fields
+                const hiddenFromField = document.createElement('input');
+                hiddenFromField.type = 'hidden';
+                hiddenFromField.name = fieldName + '_from';
+                hiddenFromField.value = dateRange.from;
+                hiddenFromField.className = 'preset-field';
+                hiddenFromField.setAttribute('data-preset', presetValue);
+                
+                const hiddenToField = document.createElement('input');
+                hiddenToField.type = 'hidden';
+                hiddenToField.name = fieldName + '_to';
+                hiddenToField.value = dateRange.to;
+                hiddenToField.className = 'preset-field';
+                hiddenToField.setAttribute('data-preset', presetValue);
+                
+                form.appendChild(hiddenFromField);
+                form.appendChild(hiddenToField);
+                
+                console.log('✅ Added hidden fields:', hiddenFromField.name, hiddenFromField.value);
+                console.log('✅ Added hidden fields:', hiddenToField.name, hiddenToField.value);
+            }
+        }
+    }
+    
+    // Debug form data before submit
+    setTimeout(() => {
+        const formData = new FormData(form);
+        console.log('📋 Final FormData entries:');
+        for (let [key, value] of formData.entries()) {
+            console.log(`  ${key}: ${value}`);
+        }
+        
+        console.log('🚀 Submitting form...');
+        form.requestSubmit();
+    }, 200);
+}
+
+// Get date range for presets
+function getPresetDateRange(preset) {
+    const today = new Date();
+    const formatDate = (date) => date.toISOString().split('T')[0];
+    
+    switch (preset) {
+        case 'today':
+            return {
+                from: formatDate(today),
+                to: formatDate(today)
+            };
+            
+        case 'this_week':
+            const startOfWeek = new Date(today);
+            const day = today.getDay();
+            const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday
+            startOfWeek.setDate(diff);
+            
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            
+            return {
+                from: formatDate(startOfWeek),
+                to: formatDate(endOfWeek)
+            };
+            
+        case 'this_month':
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            
+            return {
+                from: formatDate(startOfMonth),
+                to: formatDate(endOfMonth)
+            };
+            
+        case 'this_year':
+            const startOfYear = new Date(today.getFullYear(), 0, 1);
+            const endOfYear = new Date(today.getFullYear(), 11, 31);
+            
+            return {
+                from: formatDate(startOfYear),
+                to: formatDate(endOfYear)
+            };
+            
+        default:
+            return { from: null, to: null };
+    }
+}
+
+// Initialize date pickers to open on click
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 DOM loaded, checking date range elements...');
+    
+    // Check for all custom range divs
+    const customRangeDivs = document.querySelectorAll('[id*="CustomRange"]');
+    console.log('📋 Found CustomRange divs:', customRangeDivs.length);
+    customRangeDivs.forEach((div, index) => {
+        console.log(`📋 CustomRange ${index}:`, {
+            id: div.id,
+            display: getComputedStyle(div).display,
+            visibility: getComputedStyle(div).visibility,
+            offsetHeight: div.offsetHeight,
+            innerHTML: div.innerHTML.length > 0 ? 'Has content' : 'Empty'
+        });
+    });
+    
+    // Manual test function + Form debug
+    window.testShowCustomRange = function() {
+        const createdCustomRange = document.getElementById('createdCustomRange');
+        if (createdCustomRange) {
+            console.log('🧪 MANUAL TEST: Showing createdCustomRange');
+            createdCustomRange.style.setProperty('display', 'block', 'important');
+            createdCustomRange.style.setProperty('background', 'red', 'important');
+            createdCustomRange.style.setProperty('height', '100px', 'important');
+            createdCustomRange.style.setProperty('width', '100%', 'important');
+            createdCustomRange.innerHTML = '<p style="color: white;">MANUAL TEST - If you see this, DOM works!</p>';
+        } else {
+            console.error('❌ createdCustomRange not found in manual test');
+        }
+    };
+    
+    // Test input rendering
+    window.testInputRendering = function() {
+        console.log('🔍 TESTING INPUT RENDERING:');
+        const customRange = document.getElementById('createdCustomRange');
+        if (customRange) {
+            console.log('📋 Custom range found, checking inputs...');
+            const inputs = customRange.querySelectorAll('input');
+            console.log(`📊 Found ${inputs.length} inputs in custom range`);
+            inputs.forEach((input, index) => {
+                console.log(`Input ${index}:`, {
+                    type: input.type,
+                    name: input.name,
+                    value: input.value,
+                    display: getComputedStyle(input).display,
+                    visibility: getComputedStyle(input).visibility
+                });
+            });
+            
+            const labels = customRange.querySelectorAll('label');
+            console.log(`📊 Found ${labels.length} labels`);
+            labels.forEach((label, index) => {
+                console.log(`Label ${index}:`, label.textContent);
+            });
+        }
+    };
+    
+    console.log('🧪 Manual test function created: window.testShowCustomRange()');
+    
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    dateInputs.forEach(input => {
+        input.addEventListener('click', function() {
+            this.showPicker();
+        });
+        input.addEventListener('focus', function() {
+            this.showPicker();
+        });
+    });
+});
+</script>
+

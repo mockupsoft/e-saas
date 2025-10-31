@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= tenantName %> - Ürün Yönetimi</title>
+    <title><%= typeof tenantName !== 'undefined' ? tenantName : 'Tenant' %> - Ürün Yönetimi</title>
     <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/date-range-fix.css">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
 </head>
 <body class="tenant">
     <div class="dashboard-layout">
@@ -20,320 +20,306 @@
                 <h1 class="page-title">📦 Ürün Yönetimi</h1>
                 <div class="top-bar-actions">
                     <button class="mobile-menu-btn">☰</button>
-                    <div style="display: flex; align-items: center; gap: 1rem;">
-                        <span class="total-count"><%= products.length %> Ürün</span>
-                        <%- include('../partials/components/button', {
-                            type: 'primary',
-                            text: 'Yeni Ürün',
-                            icon: '➕',
-                            action: 'open-add-product-modal',
-                            attributes: {}
-                        }) %>
-                    </div>
+                    <button class="btn btn-primary" onclick="openModal('createProductModal')">
+                        ➕ Yeni Ürün
+                    </button>
                 </div>
             </header>
 
             <!-- Content -->
             <div class="content">
-                <!-- Stats Cards -->
-                <div class="stats-grid" style="margin-bottom: 2rem;">
-                    <div class="stat-card">
-                        <div class="stat-icon">📦</div>
-                        <div class="stat-number"><%= products.length %></div>
-                        <div class="stat-label">Toplam Ürün</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">✅</div>
-                        <div class="stat-number"><%= products.filter(p => p.status === 'active').length %></div>
-                        <div class="stat-label">Aktif Ürün</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">⚠️</div>
-                        <div class="stat-number"><%= products.filter(p => p.stock_quantity <= 5).length %></div>
-                        <div class="stat-label">Düşük Stok</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">💰</div>
-                        <div class="stat-number">₺<%= products.reduce((sum, p) => sum + (p.price * p.stock_quantity), 0).toLocaleString('tr-TR') %></div>
-                        <div class="stat-label">Toplam Stok Değeri</div>
-                    </div>
-                </div>
+                <!-- Filter Bar -->
+                <%
+                // Tenant değişkenlerini güvenli şekilde kullan
+                const safeTenantName = typeof tenantName !== 'undefined' ? tenantName : 'tenant';
+                const safeTenantDomain = typeof tenantDomain !== 'undefined' ? tenantDomain : 'tenant';
+                const productsFilterHxGet = '/' + safeTenantDomain + '/api/products';
+                %>
+                <%- include('../partials/components/filter-bar', {
+                    id: 'productsFilter',
+                    fields: [
+                        {
+                            type: 'text',
+                            name: 'q',
+                            label: 'Ara (Ad, SKU, Açıklama)',
+                            placeholder: 'Ara...',
+                            value: ''
+                        },
+                        {
+                            type: 'select',
+                            name: 'status',
+                            label: 'Durum',
+                            placeholder: 'Tümü',
+                            options: [
+                                { value: '', text: 'Tümü' },
+                                { value: 'active', text: 'Aktif' },
+                                { value: 'inactive', text: 'Pasif' }
+                            ],
+                            value: ''
+                        },
+                        {
+                            type: 'date-range',
+                            name: 'created',
+                            label: 'Oluşturulma Tarihi'
+                        }
+                    ],
+                    hxGet: productsFilterHxGet,
+                    hxTarget: '#productsTableWrapper'
+                }) %>
 
                 <!-- Products Table -->
-                <div class="dashboard-card">
-                    <div class="card-header">
-                        <h3 class="card-title">Ürün Listesi</h3>
-                    </div>
-                    <div class="card-content" style="padding: 0;">
-                        <div class="table-container" style="overflow-x: auto;">
-                            <table id="productsTable" style="width: 100%; min-width: 800px;">
-                                <thead style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
-                                    <tr>
-                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">ID</th>
-                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Ürün Adı</th>
-                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Fiyat</th>
-                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Stok</th>
-                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Durum</th>
-                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Oluşturma Tarihi</th>
-                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">İşlemler</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="products-table-body">
-                                    <% products.forEach(product => { %>
-                                        <tr class="table-row" style="border-bottom: 1px solid #e5e7eb; transition: all 0.3s ease;">
-                                            <td style="padding: 1rem; font-weight: 500;"><%= product.id %></td>
-                                            <td style="padding: 1rem;">
-                                                <strong><%= product.name %></strong>
-                                                <% if(product.description) { %>
-                                                    <div style="color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem;">
-                                                        <%= product.description.substring(0, 50) %><%= product.description.length > 50 ? '...' : '' %>
-                                                    </div>
-                                                <% } %>
-                                            </td>
-                                            <td style="padding: 1rem; font-weight: 600;">₺<%= parseFloat(product.price).toLocaleString('tr-TR') %></td>
-                                            <td style="padding: 1rem; <%= product.stock_quantity <= 5 ? 'color: #dc2626; font-weight: 600;' : 'color: #6b7280;' %>">
-                                                <%= product.stock_quantity %>
-                                                <% if(product.stock_quantity <= 5) { %>
-                                                    <span style="font-size: 0.75rem; margin-left: 0.5rem;">⚠️</span>
-                                                <% } %>
-                                            </td>
-                                            <td style="padding: 1rem;">
-                                                <%- include('../partials/components/status-badge', {
-                                                    status: product.status,
-                                                    text: product.status === 'active' ? 'Aktif' : 'Pasif'
-                                                }) %>
-                                            </td>
-                                            <td style="padding: 1rem; color: #6b7280;"><%= new Date(product.created_at).toLocaleDateString('tr-TR') %></td>
-                                            <td style="padding: 1rem;">
-                                                <div style="display: flex; gap: 0.5rem;">
-                                                    <%- include('../partials/components/button', {
-                                                        type: 'outline',
-                                                        text: 'Düzenle',
-                                                        icon: '✏️',
-                                                        size: 'sm',
-                                                        action: 'edit-product',
-                                                        attributes: { 'data-product-id': product.id }
-                                                    }) %>
-                                                    <%- include('../partials/components/button', {
-                                                        type: 'danger',
-                                                        text: 'Sil',
-                                                        icon: '🗑️',
-                                                        size: 'sm',
-                                                        action: 'delete-product',
-                                                        attributes: { 'data-product-id': product.id }
-                                                    }) %>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <% }); %>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Empty State -->
-                <% if(products.length === 0) { %>
-                    <div class="empty-state">
-                        <div class="empty-icon">📦</div>
-                        <h3>Henüz ürün bulunmuyor</h3>
-                        <p>İlk ürününüzü eklemek için "Yeni Ürün" butonuna tıklayın.</p>
-                        <%- include('../partials/components/button', {
-                            type: 'primary',
-                            text: 'İlk Ürünü Ekle',
-                            icon: '➕',
-                            action: 'open-add-product-modal'
-                        }) %>
-                    </div>
-                <% } %>
+                <%
+                const productsTableLoadUrl = '/' + safeTenantDomain + '/api/products';
+                %>
+                <%- include('../partials/components/table', {
+                    id: 'productsTable',
+                    headers: [
+                        { text: 'Ad', key: 'name', sortable: true },
+                        { text: 'Fiyat', key: 'price', sortable: true, renderKey: '_price' },
+                        { text: 'Stok', key: 'stock_quantity', sortable: true },
+                        { text: 'Durum', key: 'status', renderKey: '_status' }
+                    ],
+                    actions: [
+                        { icon: '✏️', text: 'Düzenle', action: 'edit-product', class: 'btn-outline' },
+                        { icon: '🗑️', text: 'Sil', action: 'delete-product', class: 'btn-danger' }
+                    ],
+                    loadUrl: productsTableLoadUrl,
+                    emptyMessage: 'Henüz ürün eklenmemiş',
+                    searchable: false,
+                    sortable: true,
+                    searchable: true,
+                    paginated: true
+                }) %>
             </div>
         </main>
     </div>
 
-    <!-- Add Product Modal -->
-    <div class="modal" id="addProductModal">
-        <div class="modal-content">
+    <!-- Create Product Modal -->
+    <div class="modal" id="createProductModal">
+        <div class="modal-backdrop" onclick="closeModal('createProductModal')"></div>
+        <div class="modal-content modal-md">
             <div class="modal-header">
-                <h3>Yeni Ürün Ekle</h3>
-                <button class="modal-close" data-action="close-add-product-modal">✕</button>
+                <h3 class="modal-title">Yeni Ürün Oluştur</h3>
+                <button class="modal-close" onclick="closeModal('createProductModal')">✕</button>
             </div>
-            <form id="addProductForm">
+            <%
+            const createProductUrl = '/' + tenantDomain + '/api/products';
+            %>
+            <form id="createProductModalForm" 
+                  hx-post="<%= createProductUrl %>" 
+                  hx-swap="none"
+                  hx-indicator="#createProductModalLoading">
                 <div class="modal-body">
-                    <%- include('../partials/components/form-group', {
-                        id: 'product_name',
-                        name: 'name',
-                        label: 'Ürün Adı',
-                        type: 'text',
-                        required: true,
-                        placeholder: 'Örn: MacBook Pro 14'
-                    }) %>
-                    
-                    <%- include('../partials/components/form-group', {
-                        id: 'product_description',
-                        name: 'description',
-                        label: 'Açıklama',
-                        type: 'textarea',
-                        placeholder: 'Ürün açıklaması...',
-                        rows: 3
-                    }) %>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="modal-content-wrapper" id="createProductModalContent">
                         <%- include('../partials/components/form-group', {
-                            id: 'product_price',
+                            type: 'text',
+                            name: 'name',
+                            label: 'Ürün Adı',
+                            required: true,
+                            placeholder: 'Ürün adını girin'
+                        }) %>
+                        <%- include('../partials/components/form-group', {
+                            type: 'text',
+                            name: 'sku',
+                            label: 'SKU',
+                            placeholder: 'Ürün SKU kodu'
+                        }) %>
+                        <%- include('../partials/components/form-group', {
+                            type: 'textarea',
+                            name: 'description',
+                            label: 'Açıklama',
+                            placeholder: 'Ürün açıklaması'
+                        }) %>
+                        <%- include('../partials/components/form-group', {
+                            type: 'number',
                             name: 'price',
                             label: 'Fiyat (₺)',
-                            type: 'number',
                             required: true,
-                            step: '0.01',
-                            min: '0',
-                            placeholder: '0.00'
+                            placeholder: '0.00',
+                            attributes: { step: '0.01', min: '0' }
                         }) %>
-                        
                         <%- include('../partials/components/form-group', {
-                            id: 'product_stock',
+                            type: 'number',
                             name: 'stock_quantity',
                             label: 'Stok Miktarı',
-                            type: 'number',
-                            min: '0',
-                            placeholder: '0'
+                            placeholder: '0',
+                            attributes: { min: '0' }
                         }) %>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <%
-                        const brandOptions = [
-                            { value: '', text: 'Marka Seçin' }
-                        ];
-                        brands.forEach(brand => {
-                            brandOptions.push({ value: brand.id, text: brand.name });
-                        });
-                        %>
                         <%- include('../partials/components/form-group', {
-                            id: 'product_brand',
-                            name: 'brand_id',
-                            label: 'Marka',
                             type: 'select',
-                            options: brandOptions,
-                            placeholder: 'Marka seçin (opsiyonel)'
-                        }) %>
-                        
-                        <%- include('../partials/components/form-group', {
-                            id: 'product_status',
                             name: 'status',
                             label: 'Durum',
-                            type: 'select',
                             options: [
-                                { value: 'active', text: 'Aktif' },
+                                { value: 'active', text: 'Aktif', selected: true },
                                 { value: 'inactive', text: 'Pasif' }
-                            ],
-                            defaultValue: 'active'
+                            ]
                         }) %>
+                    </div>
+                    <div id="createProductModalLoading" class="htmx-indicator modal-loading">
+                        <div class="spinner"></div>
+                        <p>İşleniyor...</p>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <%- include('../partials/components/button', {
-                        type: 'secondary',
-                        text: 'İptal',
-                        action: 'close-add-product-modal'
-                    }) %>
-                    <%- include('../partials/components/button', {
-                        type: 'primary',
-                        text: 'Ürün Ekle',
-                        submit: true
-                    }) %>
+                    <button type="button" class="btn btn-outline" onclick="closeModal('createProductModal')">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- Edit Product Modal -->
-    <div class="modal" id="editProductModal">
-        <div class="modal-content">
+    <div id="editProductModal" class="modal">
+        <div class="modal-backdrop" onclick="closeModal('editProductModal')"></div>
+        <div class="modal-content modal-md">
             <div class="modal-header">
-                <h3>Ürün Düzenle</h3>
-                <button class="modal-close" data-action="close-edit-product-modal">✕</button>
+                <h3 class="modal-title">Ürün Düzenle</h3>
+                <button class="modal-close" onclick="closeModal('editProductModal')">✕</button>
             </div>
-            <form id="editProductForm">
+            <form id="editProductForm" 
+                  hx-put="/api/products/:id" 
+                  hx-target="#productsTableWrapper"
+                  hx-swap="outerHTML"
+                  hx-indicator="#editProductLoading">
                 <div class="modal-body">
-                    <input type="hidden" id="edit_product_id" name="id">
-                    
-                    <%- include('../partials/components/form-group', {
-                        id: 'edit_product_name',
-                        name: 'name',
-                        label: 'Ürün Adı',
-                        type: 'text',
-                        required: true,
-                        placeholder: 'Örn: MacBook Pro 14'
-                    }) %>
-                    
-                    <%- include('../partials/components/form-group', {
-                        id: 'edit_product_description',
-                        name: 'description',
-                        label: 'Açıklama',
-                        type: 'textarea',
-                        placeholder: 'Ürün açıklaması...',
-                        rows: 3
-                    }) %>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <%- include('../partials/components/form-group', {
-                            id: 'edit_product_price',
-                            name: 'price',
-                            label: 'Fiyat (₺)',
-                            type: 'number',
-                            required: true,
-                            step: '0.01',
-                            min: '0',
-                            placeholder: '0.00'
-                        }) %>
-                        
-                        <%- include('../partials/components/form-group', {
-                            id: 'edit_product_stock',
-                            name: 'stock_quantity',
-                            label: 'Stok Miktarı',
-                            type: 'number',
-                            min: '0',
-                            placeholder: '0'
-                        }) %>
+                    <div id="editProductContent">
+                        <!-- Content will be loaded dynamically -->
                     </div>
-                    
-                    <%- include('../partials/components/form-group', {
-                        id: 'edit_product_status',
-                        name: 'status',
-                        label: 'Durum',
-                        type: 'select',
-                        options: [
-                            { value: 'active', text: 'Aktif' },
-                            { value: 'inactive', text: 'Pasif' }
-                        ]
-                    }) %>
+                    <div id="editProductLoading" class="htmx-indicator modal-loading">
+                        <div class="spinner"></div>
+                        <p>Yükleniyor...</p>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <%- include('../partials/components/button', {
-                        type: 'secondary',
-                        text: 'İptal',
-                        action: 'close-edit-product-modal'
-                    }) %>
-                    <%- include('../partials/components/button', {
-                        type: 'primary',
-                        text: 'Güncelle',
-                        submit: true
-                    }) %>
+                    <button type="button" class="btn btn-outline" onclick="closeModal('editProductModal')">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="/js/ui.js"></script>
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteProductModal" class="modal">
+        <div class="modal-backdrop" onclick="closeModal('deleteProductModal')"></div>
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3 class="modal-title">Ürünü Sil</h3>
+                <button class="modal-close" onclick="closeModal('deleteProductModal')">✕</button>
+            </div>
+            <%
+            const deleteProductBaseUrl = '/' + tenantDomain + '/api/products';
+            %>
+            <form id="deleteProductForm" 
+                  hx-delete="<%= deleteProductBaseUrl %>/:id" 
+                  hx-target="#productsTableWrapper"
+                  hx-swap="outerHTML">
+                <div class="modal-body">
+                    <p>Bu ürünü silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('deleteProductModal')">İptal</button>
+                    <button type="submit" class="btn btn-danger">Evet, Sil</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="/js/dashboard.js"></script>
+    <script src="/js/ui.js"></script>
+    <script src="/js/toast.js"></script>
+    <script src="/js/table-force-reload.js"></script>
+    <script src="/js/modal-fix.js"></script>
+    <link rel="stylesheet" href="/css/modal-force-fix.css">
+    <link rel="stylesheet" href="/css/toast.css">
     <script>
-        // Initialize product management when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            if (typeof window.initializeProductManagement === 'function') {
-                window.initializeProductManagement('<%= tenantDomain %>');
+        // Product management functions
+        window.editProduct = async function(productId) {
+            try {
+                const response = await fetch(`/<%= tenantDomain %>/api/products/${productId}`);
+                const result = await response.json();
+                
+                if (result.success && result.data.product) {
+                    const product = result.data.product;
+                    const editForm = document.getElementById('editProductForm');
+                    const editContent = document.getElementById('editProductContent');
+                    
+                    editForm.setAttribute('hx-put', `/${tenantDomainValue}/api/products/${productId}`);
+                    
+                    // Escape HTML for safe insertion
+                    const escapeHtml = (text) => {
+                        if (!text) return '';
+                        const div = document.createElement('div');
+                        div.textContent = text;
+                        return div.innerHTML;
+                    };
+                    
+                    editContent.innerHTML = 
+                        '<div class="form-group">' +
+                        '<label class="form-label" for="edit_name">Ürün Adı <span class="required">*</span></label>' +
+                        '<input class="form-input" type="text" name="name" id="edit_name" value="' + escapeHtml(product.name || '') + '" required placeholder="Ürün adını girin">' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                        '<label class="form-label" for="edit_sku">SKU</label>' +
+                        '<input class="form-input" type="text" name="sku" id="edit_sku" value="' + escapeHtml(product.sku || '') + '" placeholder="Ürün SKU kodu">' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                        '<label class="form-label" for="edit_description">Açıklama</label>' +
+                        '<textarea class="form-textarea" name="description" id="edit_description" placeholder="Ürün açıklaması">' + escapeHtml(product.description || '') + '</textarea>' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                        '<label class="form-label" for="edit_price">Fiyat (₺) <span class="required">*</span></label>' +
+                        '<input class="form-input" type="number" name="price" id="edit_price" value="' + (product.price || 0) + '" required placeholder="0.00" step="0.01" min="0">' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                        '<label class="form-label" for="edit_stock_quantity">Stok Miktarı</label>' +
+                        '<input class="form-input" type="number" name="stock_quantity" id="edit_stock_quantity" value="' + (product.stock_quantity || 0) + '" placeholder="0" min="0">' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                        '<label class="form-label" for="edit_status">Durum</label>' +
+                        '<select class="form-select" name="status" id="edit_status">' +
+                        '<option value="active"' + (product.status === 'active' ? ' selected' : '') + '>Aktif</option>' +
+                        '<option value="inactive"' + (product.status === 'inactive' ? ' selected' : '') + '>Pasif</option>' +
+                        '</select>' +
+                        '</div>';
+                    
+                    openModal('editProductModal');
+                } else {
+                    showToast('Ürün bilgileri alınamadı', 'error');
+                }
+            } catch (error) {
+                console.error('Edit product error:', error);
+                showToast('Bağlantı hatası', 'error');
+            }
+        };
+
+        window.deleteProduct = function(productId) {
+            const deleteForm = document.getElementById('deleteProductForm');
+            deleteForm.setAttribute('hx-delete', `/${tenantDomainValue}/api/products/${productId}`);
+            openModal('deleteProductModal');
+        };
+
+        // HTMX event listeners
+        document.body.addEventListener('htmx:afterRequest', function(event) {
+            if (event.detail.target.id === 'productsTableWrapper' || 
+                event.detail.target.closest('#productsTableWrapper')) {
+                closeModal('createProductModal');
+                closeModal('editProductModal');
+                closeModal('deleteProductModal');
+                
+                // Check if response is JSON or HTML
+                const responseText = event.detail.xhr.response || '';
+                if (responseText.startsWith('{') && responseText.endsWith('}')) {
+                    try {
+                        const response = JSON.parse(responseText);
+                        if (response.success) {
+                            showToast(response.message || 'İşlem başarılı', 'success');
+                        }
+                    } catch (e) {
+                        // Ignore JSON parse errors for HTML responses
+                    }
+                }
             }
         });
     </script>
 </body>
-</html> 
+</html>

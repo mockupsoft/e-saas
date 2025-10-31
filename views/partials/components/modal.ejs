@@ -1,32 +1,64 @@
 <%# 
-Modal Component
+Gelişmiş Modal Component
 Parameters:
-- id: Modal ID
+- id: Modal ID (required)
 - title: Modal title
-- size: 'sm', 'md', 'lg' (default: 'md')
-- form: Form configuration (action, method, hx-target, hx-swap)
-- buttons: Array of button objects {text, type, class, action}
-- content: Modal body content (pass as slot)
+- size: 'sm', 'md', 'lg', 'xl' (default: 'md')
+- form: Form configuration {hxPost, hxPut, hxDelete, hxTarget, hxSwap, hxTrigger?}
+- buttons: Array of button objects {text, type, class, action, modal}
+- content: Modal body content (EJS/HTML string)
+- closable: Can be closed by clicking outside (default: true)
+- className: Additional CSS classes
+%>
+<%
+const modalId = id || 'modal';
+const modalSize = size || 'md';
+const isClosable = typeof closable !== 'undefined' ? closable : true;
 %>
 
-<div class="modal" id="<%= id %>">
-    <div class="modal-content modal-<%= size || 'md' %>">
+<%
+const modalClassName = typeof className !== 'undefined' ? className : '';
+%>
+<div class="modal <%= modalClassName %>" 
+     id="<%= modalId %>" 
+     data-closable="<%= isClosable %>">
+    <div class="modal-backdrop" <% if (isClosable) { %>onclick="closeModal('<%= modalId %>')"<% } %>></div>
+    
+    <div class="modal-content modal-<%= modalSize %>">
         <div class="modal-header">
-            <h3 class="modal-title"><%= title %></h3>
-            <button class="modal-close" data-action="close-modal" data-modal="<%= id %>">✕</button>
+            <h3 class="modal-title">
+                <% if (typeof icon !== 'undefined') { %>
+                <span class="modal-icon"><%= icon %></span>
+                <% } %>
+                <%= title %>
+            </h3>
+            <% if (isClosable) { %>
+            <button class="modal-close" onclick="closeModal('<%= modalId %>')" type="button">✕</button>
+            <% } %>
         </div>
         
         <% if (typeof form !== 'undefined' && form) { %>
-        <form id="<%= id %>Form" 
-              <% if (form.action) { %>action="<%= form.action %>"<% } %>
-              <% if (form.method) { %>method="<%= form.method %>"<% } %>
-              <% if (form.hxPost) { %>hx-post="<%= form.hxPost %>"<% } %>
-              <% if (form.hxTarget) { %>hx-target="<%= form.hxTarget %>"<% } %>
-              <% if (form.hxSwap) { %>hx-swap="<%= form.hxSwap %>"<% } %>>
+        <form id="<%= modalId %>Form" 
+              <% if (typeof form.hxPost !== 'undefined' && form.hxPost) { %>hx-post="<%= form.hxPost %>"<% } %>
+              <% if (typeof form.hxPut !== 'undefined' && form.hxPut) { %>hx-put="<%= form.hxPut %>"<% } %>
+              <% if (typeof form.hxDelete !== 'undefined' && form.hxDelete) { %>hx-delete="<%= form.hxDelete %>"<% } %>
+              <% if (typeof form.hxTarget !== 'undefined' && form.hxTarget) { %>hx-target="<%= form.hxTarget %>"<% } %>
+              <% if (typeof form.hxSwap !== 'undefined' && form.hxSwap) { %>hx-swap="<%= form.hxSwap %>"<% } %>
+              <% if (typeof form.hxTrigger !== 'undefined' && form.hxTrigger) { %>hx-trigger="<%= form.hxTrigger %>"<% } %>
+              <% if (typeof form.hxIndicator !== 'undefined' && form.hxIndicator) { %>hx-indicator="#<%= modalId %>Loading"<% } %>
+              onsubmit="return handleFormSubmit(event, '<%= modalId %>')">
         <% } %>
         
         <div class="modal-body">
-            <%- content %>
+            <div class="modal-content-wrapper" id="<%= modalId %>Content">
+                <%- content %>
+            </div>
+            <% if (typeof form !== 'undefined' && form && form.hxIndicator) { %>
+            <div id="<%= modalId %>Loading" class="htmx-indicator modal-loading">
+                <div class="spinner"></div>
+                <p>İşleniyor...</p>
+            </div>
+            <% } %>
         </div>
         
         <% if (typeof buttons !== 'undefined' && buttons && buttons.length > 0) { %>
@@ -36,7 +68,8 @@ Parameters:
                     type="<%= button.type || 'button' %>"
                     class="btn <%= button.class || 'btn-outline' %>"
                     <% if (button.action) { %>data-action="<%= button.action %>"<% } %>
-                    <% if (button.modal) { %>data-modal="<%= button.modal %>"<% } %>>
+                    <% if (button.modal) { %>data-modal="<%= button.modal %>"<% } %>
+                    <% if (button.onclick) { %>onclick="<%= button.onclick %>"<% } %>>
                     <%= button.text %>
                 </button>
             <% }); %>
@@ -47,4 +80,14 @@ Parameters:
         </form>
         <% } %>
     </div>
-</div> 
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('<%= modalId %>');
+    if (modal) {
+        initializeModal('<%= modalId %>');
+    }
+});
+</script>
+ 
