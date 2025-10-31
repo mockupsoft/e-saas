@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Marka Yönetimi</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+    
+    <!-- Extension hatalarını gizle -->
+    <script>
+        // MetaMask ve diğer extension hatalarını gizle
+        const originalError = console.error;
+        console.error = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('MetaMask') || 
+                message.includes('inpage.js') || 
+                message.includes('chrome-extension')) {
+                return; // Extension hatalarını gizle
+            }
+            originalError.apply(console, args);
+        };
+        
+        // Promise rejection hatalarını da yakala
+        window.addEventListener('unhandledrejection', function(event) {
+            if (event.reason && (
+                event.reason.message?.includes('MetaMask') ||
+                event.reason.message?.includes('extension')
+            )) {
+                event.preventDefault();
+            }
+        });
+    </script>
+</head>
+<body class="admin">
+    <div class="dashboard-layout">
+        <!-- Admin Navigation -->
+        <nav class="sidebar">
+            <div class="nav-header">
+                <h2>Admin Panel</h2>
+            </div>
+            <div class="nav-menu">
+                <div class="nav-item">
+                    <a href="/admin/dashboard" class="nav-link">
+                        <div class="nav-icon">📊</div>
+                        <span class="nav-text">Dashboard</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/admin/tenants" class="nav-link">
+                        <div class="nav-icon">🏢</div>
+                        <span class="nav-text">Tenants</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/admin/brands" class="nav-link active">
+                        <div class="nav-icon">🏷️</div>
+                        <span class="nav-text">Markalar</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">🏷️ Marka Yönetimi (Tüm Tenants)</h1>
+                <div class="top-bar-actions">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span class="total-count"><%= (brands && brands.length) || 0 %> Marka</span>
+                        <%- include('../partials/components/button', {
+                            type: 'button',
+                            variant: 'primary',
+                            text: 'Yeni Marka',
+                            icon: '➕',
+                            action: 'open-add-brand-modal',
+                            attributes: {}
+                        }) %>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content-wrapper">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">🏷️</div>
+                        <div class="stat-info">
+                            <div class="stat-number"><%= (stats && stats.total) || 0 %></div>
+                            <div class="stat-label">Toplam Marka</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-info">
+                            <div class="stat-number"><%= (stats && stats.active) || 0 %></div>
+                            <div class="stat-label">Aktif Marka</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏸️</div>
+                        <div class="stat-info">
+                            <div class="stat-number"><%= (stats && stats.inactive) || 0 %></div>
+                            <div class="stat-label">Pasif Marka</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Brands Table -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <h2>📋 Marka Listesi</h2>
+                        <div class="table-filters">
+                            <input type="text" id="brand-search" placeholder="Marka ara..." class="search-input">
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table" id="brands-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">ID</th>
+                                    <th style="width: 150px;">Tenant</th>
+                                    <th>Marka</th>
+                                    <th>Açıklama</th>
+                                    <th style="width: 120px;">Durum</th>
+                                    <th style="width: 140px;">Oluşturma</th>
+                                    <th style="width: 160px;">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody id="brands-table-body">
+                                <% if (brands && brands.length > 0) { %>
+                                    <% brands.forEach(brand => { %>
+                                        <tr>
+                                            <td><%= brand.id %></td>
+                                            <td><%= brand.tenant_name || 'Bilinmiyor' %></td>
+                                            <td>
+                                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                    <% if (brand.logo) { %>
+                                                        <img src="<%= brand.logo %>" alt="<%= brand.name %>" style="width: 30px; height: 30px; object-fit: cover; border-radius: 4px;">
+                                                    <% } else { %>
+                                                        📦
+                                                    <% } %>
+                                                    <%= brand.name %>
+                                                </div>
+                                            </td>
+                                            <td><%= brand.description || '-' %></td>
+                                            <td>
+                                                <span class="badge <%= brand.status === 'active' ? 'badge-success' : 'badge-secondary' %>">
+                                                    <%= brand.status === 'active' ? 'Aktif' : 'Pasif' %>
+                                                </span>
+                                            </td>
+                                            <td><%= new Date(brand.created_at).toLocaleDateString('tr-TR') %></td>
+                                            <td>
+                                                <div class="table-actions">
+                                                    <button class="btn btn-outline-primary btn-sm" data-action="edit-brand" data-id="<%= brand.id %>">
+                                                        ✏️ Düzenle
+                                                    </button>
+                                                    <button class="btn btn-outline-danger btn-sm" data-action="delete-brand" data-id="<%= brand.id %>">
+                                                        🗑️ Sil
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="7" class="text-center">Henüz marka bulunmuyor</td>
+                                    </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Brand Modal -->
+    <div class="modal" id="add-brand-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-container modal-md">
+            <div class="modal-header">
+                <h3>Yeni Marka Ekle</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-brand-form" hx-post="/admin/api/brands" hx-target="#brands-table-body" hx-swap="innerHTML" enctype="multipart/form-data">
+                    <div class="form-grid">
+                        <%- include('../partials/components/form-group', {
+                            id: 'brand_name',
+                            name: 'name',
+                            label: 'Marka Adı',
+                            type: 'text',
+                            required: true,
+                            placeholder: 'Marka adını girin'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'brand_description',
+                            name: 'description',
+                            label: 'Açıklama',
+                            type: 'textarea',
+                            placeholder: 'Marka açıklaması (opsiyonel)'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'brand_logo',
+                            name: 'logo',
+                            label: 'Logo',
+                            type: 'file',
+                            accept: 'image/png,image/jpeg',
+                            placeholder: 'Logo yükleyin (PNG/JPG, max 1MB)'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'brand_status',
+                            name: 'status',
+                            label: 'Durum',
+                            type: 'select',
+                            required: true,
+                            value: 'active',
+                            options: [
+                                { value: 'active', text: 'Aktif' },
+                                { value: 'inactive', text: 'Pasif' }
+                            ]
+                        }) %>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-action="close-modal">İptal</button>
+                <button class="btn btn-primary" type="submit" form="add-brand-form">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Brand Modal -->
+    <div class="modal" id="edit-brand-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-container modal-md">
+            <div class="modal-header">
+                <h3>Marka Düzenle</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-brand-form" enctype="multipart/form-data">
+                    <input type="hidden" id="edit_brand_id" name="id">
+                    <div class="form-grid">
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_brand_name',
+                            name: 'name',
+                            label: 'Marka Adı',
+                            type: 'text',
+                            required: true,
+                            placeholder: 'Marka adını girin'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_brand_description',
+                            name: 'description',
+                            label: 'Açıklama',
+                            type: 'textarea',
+                            placeholder: 'Marka açıklaması (opsiyonel)'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_brand_logo',
+                            name: 'logo',
+                            label: 'Logo',
+                            type: 'file',
+                            accept: 'image/png,image/jpeg',
+                            placeholder: 'Yeni logo yükleyin (opsiyonel)'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_brand_status',
+                            name: 'status',
+                            label: 'Durum',
+                            type: 'select',
+                            required: true,
+                            options: [
+                                { value: 'active', text: 'Aktif' },
+                                { value: 'inactive', text: 'Pasif' }
+                            ]
+                        }) %>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-action="close-modal">İptal</button>
+                <button class="btn btn-primary" type="submit" form="edit-brand-form">Güncelle</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Brand Modal -->
+    <div class="modal" id="delete-brand-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-container modal-sm">
+            <div class="modal-header">
+                <h3>Markayı Sil</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Bu markayı silmek istediğinizden emin misiniz?</p>
+                <p><strong>Bu işlem geri alınamaz!</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-action="close-modal">İptal</button>
+                <button class="btn btn-danger" id="confirm-delete-brand">Sil</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/dashboard.js"></script>
+    <script>
+        // Toast notification function
+        function showToast(message, type = 'info', duration = 3000) {
+            if (window.showToast) {
+                window.showToast(message, type, duration);
+            } else {
+                console.log(`Toast: ${message} (${type})`);
+            }
+        }
+
+        // Brand management functions
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add Brand Modal
+            const addBrandBtn = document.querySelector('[data-action="open-add-brand-modal"]');
+            if (addBrandBtn) {
+                addBrandBtn.addEventListener('click', function() {
+                    document.getElementById('add-brand-modal').style.display = 'flex';
+                });
+            }
+            
+            // Modal close functionality
+            document.querySelectorAll('[data-action="close-modal"]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const modal = btn.closest('.modal');
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Modal overlay close
+            document.querySelectorAll('.modal-overlay').forEach(overlay => {
+                overlay.addEventListener('click', function() {
+                    const modal = overlay.closest('.modal');
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Modal X button close
+            document.querySelectorAll('.modal-close').forEach(closeBtn => {
+                closeBtn.addEventListener('click', function() {
+                    const modal = closeBtn.closest('.modal');
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+
+            // Edit brand function
+            window.editBrand = function(brandId) {
+                // Fetch brand data and populate edit form
+                fetch(`/admin/api/brands/${brandId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const brand = data.data;
+                            document.getElementById('edit_brand_id').value = brand.id;
+                            document.getElementById('edit_brand_name').value = brand.name;
+                            document.getElementById('edit_brand_description').value = brand.description || '';
+                            document.getElementById('edit_brand_status').value = brand.status;
+                            document.getElementById('edit-brand-modal').style.display = 'flex';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Brand fetch error:', error);
+                        showToast('Brand bilgileri alınamadı', 'error');
+                    });
+            };
+
+            // Delete brand function
+            window.deleteBrand = function(brandId) {
+                // Set the brand ID for deletion
+                document.getElementById('delete-brand-modal').style.display = 'flex';
+                const confirmBtn = document.getElementById('confirm-delete-brand');
+                if (confirmBtn) {
+                    confirmBtn.onclick = function() {
+                    fetch(`/admin/api/brands/${brandId}`, {
+                        method: 'DELETE'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast('Marka başarıyla silindi', 'success');
+                            location.reload(); // Reload page to update list
+                        } else {
+                            showToast('Marka silinirken hata oluştu', 'error');
+                        }
+                        document.getElementById('delete-brand-modal').style.display = 'none';
+                    })
+                    .catch(error => {
+                        console.error('Delete error:', error);
+                        showToast('Silme işleminde hata oluştu', 'error');
+                                                 document.getElementById('delete-brand-modal').style.display = 'none';
+                     });
+                 };
+                 }
+             };
+
+            // Edit brand form submission
+            document.getElementById('edit-brand-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const brandId = formData.get('id');
+                
+                fetch(`/admin/api/brands/${brandId}`, {
+                    method: 'PUT',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Marka başarıyla güncellendi', 'success');
+                        location.reload(); // Reload page to update list
+                    } else {
+                        showToast('Marka güncellenirken hata oluştu', 'error');
+                    }
+                    document.getElementById('edit-brand-modal').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Update error:', error);
+                    showToast('Güncelleme işleminde hata oluştu', 'error');
+                });
+            });
+
+            // Search functionality
+            document.getElementById('brand-search').addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                const rows = document.querySelectorAll('#brands-table-body tr');
+                
+                rows.forEach(row => {
+                    const brandName = row.cells[2].textContent.toLowerCase(); // Column 2 is brand name
+                    const brandDesc = row.cells[3].textContent.toLowerCase(); // Column 3 is description
+                    const tenantName = row.cells[1].textContent.toLowerCase(); // Column 1 is tenant
+                    
+                    if (brandName.includes(searchTerm) || brandDesc.includes(searchTerm) || tenantName.includes(searchTerm)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // HTMX success handler
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            if (evt.detail.target.id === 'brands-table-body') {
+                showToast('Marka başarıyla eklendi', 'success');
+                document.getElementById('add-brand-modal').style.display = 'none';
+                document.getElementById('add-brand-form').reset();
+                
+                // Scroll to top of table to show new item
+                const tableContainer = document.querySelector('.table-container');
+                if (tableContainer) {
+                    tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

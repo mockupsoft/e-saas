@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= tenantName %> - Müşteri Yönetimi</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+</head>
+<body class="tenant">
+    <div class="dashboard-layout">
+        <%- include('../partials/tenant-navigation', { activePage: 'customers' }) %>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">👥 Müşteri Yönetimi</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span class="total-count"><%= customers.length %> Müşteri</span>
+                        <%- include('../partials/components/button', {
+                            type: 'primary',
+                            text: 'Yeni Müşteri',
+                            icon: '➕',
+                            action: 'open-add-customer-modal',
+                            attributes: {}
+                        }) %>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Stats Cards -->
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-number"><%= stats.total %></div>
+                        <div class="stat-label">Toplam Müşteri</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-number"><%= stats.active %></div>
+                        <div class="stat-label">Aktif Müşteri</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">❌</div>
+                        <div class="stat-number"><%= stats.inactive %></div>
+                        <div class="stat-label">Pasif Müşteri</div>
+                    </div>
+                </div>
+
+                <!-- Customers Table -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Müşteri Listesi</h3>
+                        <div class="card-actions">
+                            <button class="btn btn-outline btn-sm" onclick="location.reload()">
+                                <span class="btn-icon">🔄</span> Yenile
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-content" style="padding: 0;">
+                        <div class="table-container" style="overflow-x: auto;">
+                            <table id="customersTable" class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Müşteri</th>
+                                        <th>Telefon</th>
+                                        <th class="hidden-mobile">Şehir</th>
+                                        <th>Durum</th>
+                                        <th class="hidden-mobile">Kayıt Tarihi</th>
+                                        <th class="actions-column">İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customers-table-body">
+                                    <% customers.forEach(customer => { %>
+                                        <tr class="table-row">
+                                            <td class="font-medium">#<%= customer.id %></td>
+                                            <td>
+                                                <div class="customer-info">
+                                                    <strong class="customer-name"><%= customer.name %></strong>
+                                                    <div class="customer-email"><%= customer.email %></div>
+                                                </div>
+                                            </td>
+                                            <td><%= customer.phone || '-' %></td>
+                                            <td class="hidden-mobile"><%= customer.city || '-' %></td>
+                                            <td>
+                                                <span class="badge <%= customer.status === 'active' ? 'badge-success' : 'badge-secondary' %>">
+                                                    <%= customer.status === 'active' ? 'Aktif' : 'Pasif' %>
+                                                </span>
+                                            </td>
+                                            <td class="hidden-mobile date-cell">
+                                                <%= new Date(customer.created_at).toLocaleDateString('tr-TR') %>
+                                            </td>
+                                            <td class="actions-cell">
+                                                <div class="action-buttons">
+                                                    <%- include('../partials/components/button', {
+                                                        type: 'outline',
+                                                        text: '',
+                                                        icon: '✏️',
+                                                        action: 'edit-customer',
+                                                        attributes: {
+                                                            'data-customer-id': customer.id,
+                                                            'class': 'btn-sm action-btn',
+                                                            'title': 'Düzenle'
+                                                        }
+                                                    }) %>
+                                                    <button class="btn btn-danger btn-sm action-btn" 
+                                                            onclick="deleteCustomer(<%= customer.id %>)"
+                                                            title="Sil">
+                                                        <span class="btn-icon">🗑️</span>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <% if (customers.length === 0) { %>
+                    <div class="empty-state">
+                        <div class="empty-icon">👥</div>
+                        <h3>Henüz müşteri yok</h3>
+                        <p>İlk müşterinizi oluşturmak için "Yeni Müşteri" butonuna tıklayın.</p>
+                        <%- include('../partials/components/button', {
+                            type: 'primary',
+                            text: 'Yeni Müşteri Ekle',
+                            icon: '➕',
+                            action: 'open-add-customer-modal',
+                            attributes: {}
+                        }) %>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Customer Modal -->
+    <div class="modal" id="addCustomerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Yeni Müşteri Ekle</h3>
+                <button class="modal-close" data-action="close-add-customer-modal">✕</button>
+            </div>
+            <form id="addCustomerForm" 
+                  hx-post="/<%= tenantDomain %>/api/customers" 
+                  hx-target="#customersTable tbody" 
+                  hx-swap="innerHTML"
+                  hx-on::after-request="if(event.detail.successful) { 
+                      document.getElementById('addCustomerModal').classList.remove('active'); 
+                      document.body.style.overflow = ''; 
+                      this.reset(); 
+                      window.showToast('Müşteri başarıyla eklendi!', 'success'); 
+                      setTimeout(() => location.reload(), 1000);
+                  }">
+                <div class="modal-body">
+                    <%- include('../partials/components/form-group', {
+                        id: 'customer_name',
+                        name: 'name',
+                        type: 'text',
+                        label: 'Ad Soyad',
+                        placeholder: 'Örn: Ahmet Yılmaz',
+                        required: true
+                    }) %>
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'customer_email',
+                        name: 'email',
+                        type: 'email',
+                        label: 'E-posta',
+                        placeholder: 'ornek@email.com',
+                        required: true
+                    }) %>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <%- include('../partials/components/form-group', {
+                            id: 'customer_phone',
+                            name: 'phone',
+                            type: 'tel',
+                            label: 'Telefon',
+                            placeholder: '0532 123 45 67',
+                            required: false
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'customer_city',
+                            name: 'city',
+                            type: 'text',
+                            label: 'Şehir',
+                            placeholder: 'İstanbul',
+                            required: false
+                        }) %>
+                    </div>
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'customer_status',
+                        name: 'status',
+                        type: 'select',
+                        label: 'Durum',
+                        options: [
+                            { value: 'active', text: 'Aktif', selected: true },
+                            { value: 'inactive', text: 'Pasif' }
+                        ]
+                    }) %>
+                </div>
+                <div class="modal-footer">
+                    <%- include('../partials/components/button', {
+                        type: 'secondary',
+                        text: 'İptal',
+                        action: 'close-add-customer-modal'
+                    }) %>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="btn-icon">➕</span>
+                        Müşteri Ekle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Customer Modal -->
+    <div class="modal" id="editCustomerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Müşteri Düzenle</h3>
+                <button class="modal-close" data-action="close-edit-customer-modal">✕</button>
+            </div>
+            <form id="editCustomerForm" 
+                  hx-put=""
+                  hx-target="#customersTable tbody" 
+                  hx-swap="innerHTML"
+                  hx-on::after-request="if(event.detail.successful) { 
+                      document.getElementById('editCustomerModal').classList.remove('active'); 
+                      document.body.style.overflow = ''; 
+                      window.showToast('Müşteri başarıyla güncellendi!', 'success'); 
+                      setTimeout(() => location.reload(), 1000);
+                  }">
+                <div class="modal-body">
+                    <input type="hidden" id="edit_customer_id" name="id">
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'edit_customer_name',
+                        name: 'name',
+                        type: 'text',
+                        label: 'Ad Soyad',
+                        placeholder: 'Örn: Ahmet Yılmaz',
+                        required: true
+                    }) %>
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'edit_customer_email',
+                        name: 'email',
+                        type: 'email',
+                        label: 'E-posta',
+                        placeholder: 'ornek@email.com',
+                        required: true
+                    }) %>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_customer_phone',
+                            name: 'phone',
+                            type: 'tel',
+                            label: 'Telefon',
+                            placeholder: '0532 123 45 67',
+                            required: false
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_customer_city',
+                            name: 'city',
+                            type: 'text',
+                            label: 'Şehir',
+                            placeholder: 'İstanbul',
+                            required: false
+                        }) %>
+                    </div>
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'edit_customer_status',
+                        name: 'status',
+                        type: 'select',
+                        label: 'Durum',
+                        options: [
+                            { value: 'active', text: 'Aktif' },
+                            { value: 'inactive', text: 'Pasif' }
+                        ]
+                    }) %>
+                </div>
+                <div class="modal-footer">
+                    <%- include('../partials/components/button', {
+                        type: 'secondary',
+                        text: 'İptal',
+                        action: 'close-edit-customer-modal'
+                    }) %>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="btn-icon">💾</span>
+                        Müşteri Güncelle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/ui.js"></script>
+    <script src="/js/dashboard.js"></script>
+    <script>
+        // Initialize customer management when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Setup customer modal listeners
+            setupCustomerModals();
+        });
+        
+        // Customer Management Functions
+        function setupCustomerModals() {
+            // Add Customer Modal Event Listeners
+            const addCustomerButton = document.querySelector('[data-action="open-add-customer-modal"]');
+            const addCustomerModal = document.getElementById('addCustomerModal');
+            const closeAddCustomerButtons = document.querySelectorAll('[data-action="close-add-customer-modal"]');
+            
+            // Edit Customer Modal Event Listeners
+            const editCustomerModal = document.getElementById('editCustomerModal');
+            const closeEditCustomerButtons = document.querySelectorAll('[data-action="close-edit-customer-modal"]');
+            
+            if (addCustomerButton) {
+                addCustomerButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    addCustomerModal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                });
+            }
+            
+            closeAddCustomerButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    addCustomerModal.classList.remove('active');
+                    document.body.style.overflow = '';
+                    document.getElementById('addCustomerForm').reset();
+                });
+            });
+            
+            closeEditCustomerButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    editCustomerModal.classList.remove('active');
+                    document.body.style.overflow = '';
+                    document.getElementById('editCustomerForm').reset();
+                });
+            });
+            
+            // Close modal on overlay click
+            addCustomerModal.addEventListener('click', function(e) {
+                if (e.target === addCustomerModal) {
+                    addCustomerModal.classList.remove('active');
+                    document.body.style.overflow = '';
+                    document.getElementById('addCustomerForm').reset();
+                }
+            });
+            
+            editCustomerModal.addEventListener('click', function(e) {
+                if (e.target === editCustomerModal) {
+                    editCustomerModal.classList.remove('active');
+                    document.body.style.overflow = '';
+                    document.getElementById('editCustomerForm').reset();
+                }
+            });
+        }
+        
+        // Edit Customer Function  
+        function editCustomer(customerId) {
+            console.log('Edit customer:', customerId);
+            
+            // Fetch customer data and populate edit form
+            fetch(`/<%= tenantDomain %>/api/customers/${customerId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const customer = data.data.customer;
+                        
+                        // Populate edit form
+                        document.getElementById('edit_customer_id').value = customer.id;
+                        document.getElementById('edit_customer_name').value = customer.name;
+                        document.getElementById('edit_customer_email').value = customer.email;
+                        document.getElementById('edit_customer_phone').value = customer.phone || '';
+                        document.getElementById('edit_customer_city').value = customer.city || '';
+                        document.getElementById('edit_customer_status').value = customer.status;
+                        
+                        // Set form action
+                        document.getElementById('editCustomerForm').setAttribute('hx-put', `/<%= tenantDomain %>/api/customers/${customerId}`);
+                        
+                        // Open modal
+                        document.getElementById('editCustomerModal').classList.add('active');
+                        document.body.style.overflow = 'hidden';
+                    } else {
+                        window.showToast(data.message || 'Müşteri bilgileri alınamadı', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch customer error:', error);
+                    window.showToast('Müşteri bilgileri alınırken hata oluştu', 'error');
+                });
+        }
+        
+        // Delete Customer Function
+        function deleteCustomer(customerId) {
+            if (!confirm('Bu müşteriyi silmek istediğinizden emin misiniz?')) {
+                return;
+            }
+            
+            fetch(`/<%= tenantDomain %>/api/customers/${customerId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.showToast('Müşteri başarıyla silindi', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    window.showToast(data.message || 'Müşteri silinirken hata oluştu', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Delete customer error:', error);
+                window.showToast('Müşteri silinirken hata oluştu', 'error');
+            });
+        }
+        
+        // Add global event delegation for dynamic buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.hasAttribute('data-action')) {
+                const action = e.target.getAttribute('data-action');
+                const customerId = e.target.getAttribute('data-customer-id');
+                
+                switch(action) {
+                    case 'edit-customer':
+                        e.preventDefault();
+                        editCustomer(customerId);
+                        break;
+                    case 'open-add-customer-modal':
+                        e.preventDefault();
+                        document.getElementById('addCustomerModal').classList.add('active');
+                        document.body.style.overflow = 'hidden';
+                        break;
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

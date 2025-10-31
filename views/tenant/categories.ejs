@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= tenantName %> - Kategori Yönetimi</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+</head>
+<body class="tenant">
+    <div class="dashboard-layout">
+        <%- include('../partials/tenant-navigation', { activePage: 'categories' }) %>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">📁 Kategori Yönetimi</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span class="total-count"><%= categories.length %> Kategori</span>
+                        <%- include('../partials/components/button', {
+                            variant: 'primary',
+                            text: 'Yeni Kategori',
+                            icon: '➕',
+                            action: 'open-add-category-modal',
+                            attributes: {}
+                        }) %>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Stats Cards -->
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <div class="stat-icon">📁</div>
+                        <div class="stat-number"><%= stats.total %></div>
+                        <div class="stat-label">Toplam Kategori</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-number"><%= stats.active %></div>
+                        <div class="stat-label">Aktif Kategori</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">❌</div>
+                        <div class="stat-number"><%= stats.inactive %></div>
+                        <div class="stat-label">Pasif Kategori</div>
+                    </div>
+                </div>
+
+                <!-- Categories Table -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Kategori Listesi</h3>
+                        <div class="card-header-actions">
+                            <input type="text" 
+                                   placeholder="Kategori ara..." 
+                                   class="search-input"
+                                   id="categorySearch">
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <% if (categories.length === 0) { %>
+                            <div style="text-align: center; padding: 3rem; color: #6b7280;">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                                <h3 style="margin-bottom: 0.5rem; color: #374151;">Henüz kategori bulunmuyor</h3>
+                                <p>İlk kategorinizi oluşturmak için "Yeni Kategori" butonunu kullanın.</p>
+                            </div>
+                        <% } else { %>
+                            <div style="overflow-x: auto;">
+                                <table class="data-table" id="categoryTable">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Kategori Adı</th>
+                                            <th>Açıklama</th>
+                                            <th>Durum</th>
+                                            <th>Oluşturma Tarihi</th>
+                                            <th>İşlemler</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="categoryTableBody">
+                                        <% categories.forEach(category => { %>
+                                            <tr>
+                                                <td>#<%= category.id %></td>
+                                                <td class="font-medium"><%= category.name %></td>
+                                                <td class="description-cell"><%= category.description || '-' %></td>
+                                                <td>
+                                                    <% if (category.status === 'active') { %>
+                                                        <span class="badge badge-success">Aktif</span>
+                                                    <% } else { %>
+                                                        <span class="badge badge-secondary">Pasif</span>
+                                                    <% } %>
+                                                </td>
+                                                <td class="date-cell"><%= new Date(category.created_at).toLocaleDateString('tr-TR') %></td>
+                                                <td>
+                                                    <div class="table-actions">
+                                                        <button class="btn btn-outline-primary btn-sm" 
+                                                                data-action="edit-category" 
+                                                                data-id="<%= category.id %>">
+                                                            ✏️ Düzenle
+                                                        </button>
+                                                        <button class="btn btn-outline-danger btn-sm" 
+                                                                data-action="delete-category" 
+                                                                data-id="<%= category.id %>">
+                                                            🗑️ Sil
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overlay for mobile -->
+            <div class="overlay"></div>
+        </main>
+    </div>
+
+    <!-- Add Category Modal -->
+    <div id="addCategoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>➕ Yeni Kategori Ekle</h2>
+                <button class="modal-close" data-action="close-modal">&times;</button>
+            </div>
+            <form id="addCategoryForm" 
+                  hx-post="/<%= tenantDomain %>/api/categories"
+                  hx-target="#categoryTableBody"
+                  hx-swap="innerHTML">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="categoryName" class="form-label">Kategori Adı *</label>
+                        <input type="text" 
+                               id="categoryName" 
+                               name="name" 
+                               class="form-input" 
+                               placeholder="Kategori adını girin..."
+                               required>
+                        <div class="form-error" id="nameError"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="categoryDescription" class="form-label">Açıklama</label>
+                        <textarea id="categoryDescription" 
+                                  name="description" 
+                                  class="form-input" 
+                                  rows="3"
+                                  placeholder="Kategori açıklamasını girin... (İsteğe bağlı)"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="categoryStatus" class="form-label">Durum</label>
+                        <select id="categoryStatus" name="status" class="form-select">
+                            <option value="active">Aktif</option>
+                            <option value="inactive">Pasif</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-action="close-modal">İptal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="btn-icon">➕</span>
+                        Kategori Ekle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Category Modal -->
+    <div id="editCategoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✏️ Kategori Düzenle</h2>
+                <button class="modal-close" data-action="close-modal">&times;</button>
+            </div>
+            <form id="editCategoryForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editCategoryId" name="id">
+                    
+                    <div class="form-group">
+                        <label for="editCategoryName" class="form-label">Kategori Adı *</label>
+                        <input type="text" 
+                               id="editCategoryName" 
+                               name="name" 
+                               class="form-input" 
+                               placeholder="Kategori adını girin..."
+                               required>
+                        <div class="form-error" id="editNameError"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editCategoryDescription" class="form-label">Açıklama</label>
+                        <textarea id="editCategoryDescription" 
+                                  name="description" 
+                                  class="form-input" 
+                                  rows="3"
+                                  placeholder="Kategori açıklamasını girin... (İsteğe bağlı)"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editCategoryStatus" class="form-label">Durum</label>
+                        <select id="editCategoryStatus" name="status" class="form-select">
+                            <option value="active">Aktif</option>
+                            <option value="inactive">Pasif</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-action="close-modal">İptal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="btn-icon">✏️</span>
+                        Güncelle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteCategoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🗑️ Kategori Sil</h2>
+                <button class="modal-close" data-action="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="delete-confirmation">
+                    <div class="delete-icon">⚠️</div>
+                    <h3>Kategori Silme Onayı</h3>
+                    <p>Bu kategoriyi silmek istediğinizden emin misiniz?</p>
+                    <p class="delete-warning">
+                        <strong>Not:</strong> Kategori pasif duruma geçirilecek. Kalıcı olarak silinmeyecek.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-action="close-modal">İptal</button>
+                <button type="button" id="confirmDeleteCategory" class="btn btn-danger">
+                    <span class="btn-icon">🗑️</span>
+                    Kategoriyi Sil
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Categories sayfasında dashboard.js yüklemeyin - çakışma yaratıyor -->
+    <script>
+        // Global fonksiyon override'ları
+        window.editCategory = function(id) { 
+            console.log('Dashboard.js editCategory blocked for ID:', id);
+            return false;
+        };
+        window.deleteCategory = function(id) { 
+            console.log('Dashboard.js deleteCategory blocked for ID:', id);
+            return false;
+        };
+        
+        // Mobile menu için basit toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.querySelector('.overlay');
+            
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', function() {
+                    sidebar?.classList.toggle('sidebar-open');
+                    overlay?.classList.toggle('overlay-show');
+                });
+            }
+            
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    sidebar?.classList.remove('sidebar-open');
+                    overlay?.classList.remove('overlay-show');
+                });
+            }
+        });
+    </script>
+    <script>
+        // Prevent inpage.js errors from breaking our functionality
+        window.addEventListener('error', function(e) {
+            if (e.filename && e.filename.includes('inpage.js')) {
+                console.warn('Inpage.js error ignored:', e.message);
+                e.preventDefault();
+                return true;
+            }
+        });
+        
+        // Category management JavaScript
+        let currentCategoryId = null;
+
+        // Event listeners - basit ve temiz yaklaşım
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Categories page loaded, setting up event listeners');
+            setupCategoryEventListeners();
+            
+            // Search input listener
+            const searchInput = document.getElementById('categorySearch');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    filterCategories(this.value);
+                });
+            }
+            
+            // HTMX güncellemelerinden sonra event listener'ları yeniden ekle
+            document.body.addEventListener('htmx:afterSettle', function(event) {
+                console.log('HTMX content updated, re-attaching listeners');
+                // Clear setup flag to allow re-setup
+                document.body.removeAttribute('data-category-listeners-setup');
+                setupCategoryEventListeners();
+            });
+        });
+
+        // HTMX event listeners
+        document.body.addEventListener('htmx:afterRequest', function(event) {
+            if (event.detail.successful) {
+                // Form başarılıysa modalı kapat
+                if (event.detail.xhr.status === 200 || event.detail.xhr.status === 201) {
+                    closeModal();
+                    showNotification('success', 'İşlem başarıyla tamamlandı!');
+                }
+            } else {
+                showNotification('error', 'Bir hata oluştu. Lütfen tekrar deneyin.');
+            }
+        });
+
+        function setupCategoryEventListeners() {
+            console.log('Setting up category event listeners...');
+            
+            // Check if already setup
+            if (document.body.hasAttribute('data-category-listeners-setup')) {
+                console.log('Event listeners already setup');
+                return;
+            }
+            
+            // Direct event listeners for each button type - no delegation
+            
+            // 1. Yeni kategori ekle butonu
+            const addButton = document.querySelector('[data-action="open-add-category-modal"]');
+            if (addButton) {
+                console.log('Add button found, attaching listener');
+                addButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Add button clicked - opening modal');
+                    openAddCategoryModal();
+                });
+            } else {
+                console.error('Add button not found');
+            }
+            
+            // 2. Düzenle butonları
+            const editButtons = document.querySelectorAll('[data-action="edit-category"]');
+            console.log('Edit buttons found:', editButtons.length);
+            editButtons.forEach(function(button) {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const categoryId = this.dataset.id;
+                    console.log('Edit button clicked for category:', categoryId);
+                    if (categoryId) {
+                        openEditCategoryModal(categoryId);
+                    } else {
+                        console.error('No category ID found');
+                        showNotification('error', 'Kategori ID bulunamadı.');
+                    }
+                });
+            });
+            
+            // 3. Sil butonları
+            const deleteButtons = document.querySelectorAll('[data-action="delete-category"]');
+            console.log('Delete buttons found:', deleteButtons.length);
+            deleteButtons.forEach(function(button) {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const categoryId = this.dataset.id;
+                    console.log('Delete button clicked for category:', categoryId);
+                    if (categoryId) {
+                        openDeleteCategoryModal(categoryId);
+                    } else {
+                        console.error('No category ID found');
+                        showNotification('error', 'Kategori ID bulunamadı.');
+                    }
+                });
+            });
+            
+            // 4. Modal kapatma butonları
+            const closeButtons = document.querySelectorAll('[data-action="close-modal"]');
+            console.log('Close buttons found:', closeButtons.length);
+            closeButtons.forEach(function(button) {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Close button clicked');
+                    closeModal();
+                });
+            });
+            
+            // Mark as setup
+            document.body.setAttribute('data-category-listeners-setup', 'true');
+
+            // Form submit event listeners
+            const addForm = document.getElementById('addCategoryForm');
+            if (addForm) {
+                addForm.addEventListener('submit', function(e) {
+                    if (!validateCategoryForm(this)) {
+                        e.preventDefault();
+                    }
+                });
+            }
+
+            const editForm = document.getElementById('editCategoryForm');
+            if (editForm) {
+                editForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    if (validateCategoryForm(this)) {
+                        submitEditCategory();
+                    }
+                });
+            }
+
+            // Delete confirmation
+            const confirmDeleteBtn = document.getElementById('confirmDeleteCategory');
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.addEventListener('click', function() {
+                    if (currentCategoryId) {
+                        deleteCategory(currentCategoryId);
+                    }
+                });
+            }
+
+            // Search functionality
+            const searchInput = document.getElementById('categorySearch');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    filterCategories(this.value);
+                });
+            }
+        }
+
+        function openAddCategoryModal() {
+            const modal = document.getElementById('addCategoryModal');
+            modal.style.display = 'flex';
+            document.body.classList.add('modal-open');
+            
+            // Form'u temizle
+            document.getElementById('addCategoryForm').reset();
+            clearFormErrors();
+        }
+
+        function openEditCategoryModal(categoryId) {
+            currentCategoryId = categoryId;
+            
+            // Kategori bilgilerini API'den al
+            fetch(`/<%= tenantDomain %>/api/categories/${categoryId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const category = data.data.category;
+                        
+                        // Form'u doldur
+                        document.getElementById('editCategoryId').value = category.id;
+                        document.getElementById('editCategoryName').value = category.name;
+                        document.getElementById('editCategoryDescription').value = category.description || '';
+                        document.getElementById('editCategoryStatus').value = category.status;
+                        
+                        // Modal'ı aç
+                        const modal = document.getElementById('editCategoryModal');
+                        modal.style.display = 'flex';
+                        document.body.classList.add('modal-open');
+                        
+                        clearFormErrors();
+                    } else {
+                        showNotification('error', 'Kategori bilgileri alınamadı.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Kategori getirme hatası:', error);
+                    showNotification('error', 'Kategori bilgileri alınamadı.');
+                });
+        }
+
+        function openDeleteCategoryModal(categoryId) {
+            currentCategoryId = categoryId;
+            const modal = document.getElementById('deleteCategoryModal');
+            modal.style.display = 'flex';
+            document.body.classList.add('modal-open');
+        }
+
+        function closeModal() {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                modal.style.display = 'none';
+            });
+            document.body.classList.remove('modal-open');
+            currentCategoryId = null;
+        }
+
+        function submitEditCategory() {
+            const form = document.getElementById('editCategoryForm');
+            const formData = new FormData(form);
+            const categoryId = formData.get('id');
+            
+            const data = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                status: formData.get('status')
+            };
+
+            fetch(`/<%= tenantDomain %>/api/categories/${categoryId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'HX-Request': 'true'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('categoryTableBody').innerHTML = html;
+                closeModal();
+                showNotification('success', 'Kategori başarıyla güncellendi!');
+            })
+            .catch(error => {
+                console.error('Kategori güncelleme hatası:', error);
+                showNotification('error', 'Kategori güncellenirken bir hata oluştu.');
+            });
+        }
+
+        function deleteCategory(categoryId) {
+            fetch(`/<%= tenantDomain %>/api/categories/${categoryId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Sayfayı yenile veya satırı kaldır
+                    location.reload();
+                } else {
+                    showNotification('error', data.message || 'Kategori silinemedi.');
+                }
+            })
+            .catch(error => {
+                console.error('Kategori silme hatası:', error);
+                showNotification('error', 'Kategori silinirken bir hata oluştu.');
+            });
+        }
+
+        function validateCategoryForm(form) {
+            clearFormErrors();
+            let isValid = true;
+
+            const nameInput = form.querySelector('[name="name"]');
+            if (!nameInput.value.trim()) {
+                showFieldError(nameInput, 'Kategori adı zorunludur.');
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        function showFieldError(input, message) {
+            const errorDiv = input.parentElement.querySelector('.form-error');
+            if (errorDiv) {
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+            }
+            input.classList.add('error');
+        }
+
+        function clearFormErrors() {
+            const errorDivs = document.querySelectorAll('.form-error');
+            errorDivs.forEach(div => {
+                div.textContent = '';
+                div.style.display = 'none';
+            });
+            
+            const errorInputs = document.querySelectorAll('.form-input.error');
+            errorInputs.forEach(input => {
+                input.classList.remove('error');
+            });
+        }
+
+        function filterCategories(searchTerm) {
+            const rows = document.querySelectorAll('#categoryTableBody tr');
+            searchTerm = searchTerm.toLowerCase();
+
+            rows.forEach(row => {
+                const categoryName = row.cells[1].textContent.toLowerCase();
+                const categoryDescription = row.cells[2].textContent.toLowerCase();
+                
+                if (categoryName.includes(searchTerm) || categoryDescription.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        function showNotification(type, message) {
+            // Basit notification sistemi
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                color: white;
+                font-weight: 500;
+                z-index: 10000;
+                opacity: 0;
+                transform: translateY(-20px);
+                transition: all 0.3s ease;
+            `;
+            
+            if (type === 'success') {
+                notification.style.background = '#10b981';
+            } else if (type === 'error') {
+                notification.style.background = '#ef4444';
+            }
+            
+            document.body.appendChild(notification);
+            
+            // Animasyon
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateY(0)';
+            }, 100);
+            
+            // 3 saniye sonra kaldır
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateY(-20px)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // Modal overlay click handling
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal')) {
+                closeModal();
+            }
+        });
+
+        // ESC key handling
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html> 

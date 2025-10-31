@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= tenantName %> - Personel Yönetimi</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+</head>
+<body class="tenant">
+    <div class="dashboard-layout">
+        <%- include('../partials/tenant-navigation', { activePage: 'staff' }) %>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">👥 Personel Yönetimi</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span class="total-count"><%= staff.length %> Personel</span>
+                        <% if (currentUser && currentUser.role === 'admin') { %>
+                            <%- include('../partials/components/button', {
+                                variant: 'primary',
+                                text: 'Yeni Personel',
+                                icon: '➕',
+                                action: 'open-add-staff-modal',
+                                attributes: {}
+                            }) %>
+                        <% } %>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Stats Cards -->
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-number"><%= stats.total %></div>
+                        <div class="stat-label">Toplam Personel</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-number"><%= stats.active %></div>
+                        <div class="stat-label">Aktif Personel</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🛡️</div>
+                        <div class="stat-number"><%= stats.admin %></div>
+                        <div class="stat-label">Yönetici</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⚡</div>
+                        <div class="stat-number"><%= stats.manager %></div>
+                        <div class="stat-label">Müdür</div>
+                    </div>
+                </div>
+
+                <!-- Staff Table -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Personel Listesi</h3>
+                    </div>
+                    <div class="card-content">
+                        <% if (staff.length === 0) { %>
+                            <div style="text-align: center; padding: 3rem; color: #6b7280;">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
+                                <h3 style="margin-bottom: 0.5rem; color: #374151;">Henüz personel bulunmuyor</h3>
+                                <p>İlk personelinizi eklemek için "Yeni Personel" butonunu kullanın.</p>
+                            </div>
+                        <% } else { %>
+                            <div style="overflow-x: auto;">
+                                <table id="staffTable" style="width: 100%; min-width: 700px;">
+                                    <thead style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                        <tr>
+                                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">ID</th>
+                                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Ad Soyad</th>
+                                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">E-posta</th>
+                                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Rol</th>
+                                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Durum</th>
+                                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Katılım Tarihi</th>
+                                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">İşlemler</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% staff.forEach(staffMember => { %>
+                                            <tr class="table-row" style="border-bottom: 1px solid #e5e7eb;">
+                                                <td style="padding: 1rem; color: #374151;">#<%= staffMember.id %></td>
+                                                <td style="padding: 1rem; font-weight: 500; color: #111827;"><%= staffMember.name %></td>
+                                                <td style="padding: 1rem; color: #6b7280;"><%= staffMember.email %></td>
+                                                <td style="padding: 1rem;">
+                                                    <span class="role-badge role-<%= staffMember.role %>" style="padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; color: white;">
+                                                        <%= staffMember.role_display %>
+                                                    </span>
+                                                </td>
+                                                <td style="padding: 1rem;">
+                                                    <%- include('../partials/components/status-badge', {
+                                                        status: staffMember.status,
+                                                        text: staffMember.status_display
+                                                    }) %>
+                                                </td>
+                                                <td style="padding: 1rem; color: #6b7280; font-size: 0.875rem;"><%= new Date(staffMember.created_at).toLocaleDateString('tr-TR') %></td>
+                                                <td style="padding: 1rem;">
+                                                    <div style="display: flex; gap: 0.5rem;">
+                                                        <% if (currentUser && (currentUser.role === 'admin' || currentUser.id === staffMember.id)) { %>
+                                                            <button onclick="editStaff(<%= staffMember.id %>, '<%= staffMember.name %>', '<%= staffMember.email %>', '<%= staffMember.role %>', '<%= staffMember.status %>')"
+                                                                    style="padding: 0.5rem; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer; color: #6b7280;">
+                                                                ✏️
+                                                            </button>
+                                                        <% } %>
+                                                        <% if (currentUser && currentUser.role === 'admin' && currentUser.id !== staffMember.id) { %>
+                                                            <button onclick="deleteStaff(<%= staffMember.id %>, '<%= staffMember.name %>')"
+                                                                    style="padding: 0.5rem; border: 1px solid #dc2626; background: #dc2626; color: white; border-radius: 6px; cursor: pointer;">
+                                                                🗑️
+                                                            </button>
+                                                        <% } %>
+                                                        <% if (currentUser && (currentUser.role === 'admin' || currentUser.id === staffMember.id)) { %>
+                                                            <button onclick="changePassword(<%= staffMember.id %>, '<%= staffMember.name %>')"
+                                                                    style="padding: 0.5rem; border: 1px solid #3b82f6; background: #3b82f6; color: white; border-radius: 6px; cursor: pointer;">
+                                                                🔑
+                                                            </button>
+                                                        <% } %>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overlay for mobile -->
+            <div class="overlay"></div>
+        </main>
+    </div>
+
+    <!-- Add Staff Modal -->
+    <% if (currentUser && currentUser.role === 'admin') { %>
+    <div id="addStaffModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #374151;">Yeni Personel Ekle</h3>
+                <button data-action="close-add-staff-modal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+            </div>
+            
+            <form hx-post="/<%= tenantDomain %>/api/staff" 
+                  hx-target="#staffTable" 
+                  hx-swap="outerHTML"
+                  hx-on::after-request="handleStaffFormSuccess()"
+                  id="staffForm">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Ad Soyad *</label>
+                    <input type="text" name="name" required 
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">E-posta *</label>
+                    <input type="email" name="email" required 
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Şifre *</label>
+                    <input type="password" name="password" required minlength="6"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                    <small style="color: #6b7280; font-size: 0.875rem;">En az 6 karakter olmalıdır</small>
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Rol</label>
+                    <select name="role" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                        <option value="viewer">Görüntüleyici</option>
+                        <option value="manager">Müdür</option>
+                        <option value="admin">Yönetici</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Durum</label>
+                    <select name="status" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                        <option value="active">Aktif</option>
+                        <option value="disabled">Pasif</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" data-action="close-add-staff-modal" 
+                            style="padding: 0.75rem 1.5rem; border: 1px solid #d1d5db; background: white; border-radius: 8px; cursor: pointer;">
+                        İptal
+                    </button>
+                    <button type="submit" 
+                            style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00C9FF 0%, #92FE9D 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                        Personel Ekle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <% } %>
+
+    <!-- Edit Staff Modal -->
+    <div id="editStaffModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10001; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #374151;">Personel Düzenle</h3>
+                <button data-action="close-edit-staff-modal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+            </div>
+            
+            <form id="editStaffForm">
+                <input type="hidden" id="editStaffId" name="staffId">
+                
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Ad Soyad *</label>
+                    <input type="text" id="editStaffName" name="name" required 
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">E-posta *</label>
+                    <input type="email" id="editStaffEmail" name="email" required 
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                </div>
+                
+                <% if (currentUser && currentUser.role === 'admin') { %>
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Rol</label>
+                    <select id="editStaffRole" name="role" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                        <option value="viewer">Görüntüleyici</option>
+                        <option value="manager">Müdür</option>
+                        <option value="admin">Yönetici</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Durum</label>
+                    <select id="editStaffStatus" name="status" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                        <option value="active">Aktif</option>
+                        <option value="disabled">Pasif</option>
+                    </select>
+                </div>
+                <% } %>
+                
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" data-action="close-edit-staff-modal" 
+                            style="padding: 0.75rem 1.5rem; border: 1px solid #d1d5db; background: white; border-radius: 8px; cursor: pointer;">
+                        İptal
+                    </button>
+                    <button type="submit" 
+                            style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00C9FF 0%, #92FE9D 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                        Güncelle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10002; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #374151;">Şifre Değiştir</h3>
+                <button data-action="close-password-modal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+            </div>
+            
+            <form id="passwordForm">
+                <input type="hidden" id="passwordStaffId" name="staffId">
+                
+                <% if (currentUser) { %>
+                <div style="margin-bottom: 1rem;" id="currentPasswordField">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Mevcut Şifre *</label>
+                    <input type="password" id="currentPassword" name="currentPassword"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                </div>
+                <% } %>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Yeni Şifre *</label>
+                    <input type="password" id="newPassword" name="newPassword" required minlength="6"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                    <small style="color: #6b7280; font-size: 0.875rem;">En az 6 karakter olmalıdır</small>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" data-action="close-password-modal" 
+                            style="padding: 0.75rem 1.5rem; border: 1px solid #d1d5db; background: white; border-radius: 8px; cursor: pointer;">
+                        İptal
+                    </button>
+                    <button type="submit" 
+                            style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                        Şifreyi Değiştir
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <style>
+        .role-badge {
+            color: white;
+        }
+        .role-admin {
+            background: #dc2626; /* Red */
+        }
+        .role-manager {
+            background: #3b82f6; /* Blue */
+        }
+        .role-viewer {
+            background: #6b7280; /* Gray */
+        }
+        .table-row:hover {
+            background-color: #f9fafb;
+        }
+    </style>
+
+    <script src="/js/dashboard.js"></script>
+    <script>
+        // Staff management functions
+        function editStaff(id, name, email, role, status) {
+            document.getElementById('editStaffId').value = id;
+            document.getElementById('editStaffName').value = name;
+            document.getElementById('editStaffEmail').value = email;
+            
+            <% if (currentUser && currentUser.role === 'admin') { %>
+            document.getElementById('editStaffRole').value = role;
+            document.getElementById('editStaffStatus').value = status;
+            <% } %>
+            
+            document.getElementById('editStaffModal').style.display = 'flex';
+        }
+
+        function deleteStaff(id, name) {
+            if (confirm(`${name} adlı personeli silmek istediğinizden emin misiniz?`)) {
+                fetch(`/<%= tenantDomain %>/api/staff/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Hata: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Personel silinirken bir hata oluştu.');
+                });
+            }
+        }
+
+        function changePassword(id, name) {
+            document.getElementById('passwordStaffId').value = id;
+            
+            // Admin değilse ve kendi hesabı değilse mevcut şifre isteme
+            <% if (currentUser) { %>
+            const isOwnAccount = id === <%= currentUser.id %>;
+            const isAdmin = '<%= currentUser.role %>' === 'admin';
+            const currentPasswordField = document.getElementById('currentPasswordField');
+            const currentPasswordInput = document.getElementById('currentPassword');
+            
+            if (isAdmin && !isOwnAccount) {
+                currentPasswordField.style.display = 'none';
+                currentPasswordInput.required = false;
+            } else {
+                currentPasswordField.style.display = 'block';
+                currentPasswordInput.required = true;
+            }
+            <% } %>
+            
+            document.getElementById('passwordModal').style.display = 'flex';
+        }
+
+        // Modal handlers
+        document.addEventListener('click', function(e) {
+            if (e.target.getAttribute('data-action') === 'open-add-staff-modal') {
+                document.getElementById('addStaffModal').style.display = 'flex';
+            }
+            if (e.target.getAttribute('data-action') === 'close-add-staff-modal') {
+                document.getElementById('addStaffModal').style.display = 'none';
+            }
+            if (e.target.getAttribute('data-action') === 'close-edit-staff-modal') {
+                document.getElementById('editStaffModal').style.display = 'none';
+            }
+            if (e.target.getAttribute('data-action') === 'close-password-modal') {
+                document.getElementById('passwordModal').style.display = 'none';
+            }
+        });
+
+        function handleStaffFormSuccess() {
+            document.getElementById('addStaffModal').style.display = 'none';
+            document.getElementById('staffForm').reset();
+            location.reload();
+        }
+
+        // Edit form submission
+        document.getElementById('editStaffForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const staffId = formData.get('staffId');
+            
+            fetch(`/<%= tenantDomain %>/api/staff/${staffId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: formData.get('name'),
+                    email: formData.get('email'),
+                    <% if (currentUser && currentUser.role === 'admin') { %>
+                    role: formData.get('role'),
+                    status: formData.get('status')
+                    <% } %>
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('editStaffModal').style.display = 'none';
+                    location.reload();
+                } else {
+                    alert('Hata: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Personel güncellenirken bir hata oluştu.');
+            });
+        });
+
+        // Password form submission
+        document.getElementById('passwordForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const staffId = formData.get('staffId');
+            
+            fetch(`/<%= tenantDomain %>/api/staff/${staffId}/password`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    newPassword: formData.get('newPassword'),
+                    currentPassword: formData.get('currentPassword')
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('passwordModal').style.display = 'none';
+                    document.getElementById('passwordForm').reset();
+                    alert('Şifre başarıyla değiştirildi.');
+                } else {
+                    alert('Hata: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Şifre değiştirilirken bir hata oluştu.');
+            });
+        });
+    </script>
+</body>
+</html> 

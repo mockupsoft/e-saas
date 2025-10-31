@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= tenantName %> - Affiliate Sistemi</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+</head>
+<body class="tenant">
+    <div class="dashboard-layout">
+        <%- include('../partials/tenant-navigation', { 
+            tenantName: tenantName,
+            tenantDomain: tenantDomain,
+            activePage: 'affiliates',
+            userRole: typeof userRole !== 'undefined' ? userRole : null
+        }) %>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">🤝 Affiliate Sistemi</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span class="total-count"><%= affiliates.length %> Affiliate</span>
+                        <%- include('../partials/components/button', {
+                            type: 'primary',
+                            text: 'Yeni Affiliate',
+                            icon: '➕',
+                            action: 'open-add-affiliate-modal',
+                            attributes: {}
+                        }) %>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Stats Cards -->
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <div class="stat-icon">🤝</div>
+                        <div class="stat-number"><%= stats.total %></div>
+                        <div class="stat-label">Toplam Affiliate</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-number"><%= stats.active %></div>
+                        <div class="stat-label">Aktif Affiliate</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-number">₺<%= stats.totalCommission.toLocaleString('tr-TR') %></div>
+                        <div class="stat-label">Toplam Komisyon</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏳</div>
+                        <div class="stat-number">₺<%= stats.pendingCommission.toLocaleString('tr-TR') %></div>
+                        <div class="stat-label">Bekleyen Komisyon</div>
+                    </div>
+                </div>
+
+                <!-- Affiliates Table -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Affiliate Listesi</h3>
+                    </div>
+                    <div class="card-content" style="padding: 0;">
+                        <div class="table-container" style="overflow-x: auto;">
+                            <table id="affiliatesTable" style="width: 100%; min-width: 800px;">
+                                <thead style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                    <tr>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">ID</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Affiliate Kodu</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Müşteri</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Komisyon Oranı</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Toplam Satış</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Komisyon</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Durum</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="affiliates-table-body">
+                                    <% affiliates.forEach(affiliate => { %>
+                                        <tr class="table-row" style="border-bottom: 1px solid #e5e7eb; transition: all 0.3s ease;">
+                                            <td style="padding: 1rem; font-weight: 500;"><%= affiliate.id %></td>
+                                            <td style="padding: 1rem;">
+                                                <strong style="font-family: monospace; background: #f3f4f6; padding: 2px 6px; border-radius: 4px;"><%= affiliate.affiliate_code %></strong>
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                <% if (affiliate.customer_name) { %>
+                                                    <strong><%= affiliate.customer_name %></strong>
+                                                    <div style="color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem;">
+                                                        <%= affiliate.customer_email %>
+                                                    </div>
+                                                <% } else { %>
+                                                    <span style="color: #9ca3af;">Müşteri Silinmiş</span>
+                                                <% } %>
+                                            </td>
+                                            <td style="padding: 1rem; font-weight: 600;">%<%= parseFloat(affiliate.commission_rate).toFixed(2) %></td>
+                                            <td style="padding: 1rem;">
+                                                <div><%= affiliate.total_sales_count || 0 %> satış</div>
+                                                <div style="font-size: 0.875rem; color: #6b7280;">₺<%= (affiliate.total_sales || 0).toLocaleString('tr-TR') %></div>
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                <div style="font-weight: 600;">₺<%= (affiliate.total_commission || 0).toLocaleString('tr-TR') %></div>
+                                                <% if (affiliate.pending_commission > 0) { %>
+                                                    <div style="font-size: 0.875rem; color: #f59e0b;">₺<%= affiliate.pending_commission.toLocaleString('tr-TR') %> beklemede</div>
+                                                <% } %>
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                <%- include('../partials/components/status-badge', {
+                                                    status: affiliate.status,
+                                                    text: affiliate.status === 'active' ? 'Aktif' : 'Pasif'
+                                                }) %>
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                <div style="display: flex; gap: 0.5rem;">
+                                                    <%- include('../partials/components/button', {
+                                                        type: 'outline',
+                                                        text: 'Detay',
+                                                        icon: '👁️',
+                                                        action: 'view-affiliate-detail',
+                                                        attributes: {
+                                                            'data-affiliate-id': affiliate.id,
+                                                            'class': 'btn-sm'
+                                                        }
+                                                    }) %>
+                                                    <%- include('../partials/components/button', {
+                                                        type: 'outline',
+                                                        text: 'Düzenle',
+                                                        icon: '✏️',
+                                                        action: 'edit-affiliate',
+                                                        attributes: {
+                                                            'data-affiliate-id': affiliate.id,
+                                                            'class': 'btn-sm'
+                                                        }
+                                                    }) %>
+                                                    <%- include('../partials/components/button', {
+                                                        type: 'danger',
+                                                        text: 'Sil',
+                                                        icon: '🗑️',
+                                                        action: 'delete-affiliate',
+                                                        attributes: {
+                                                            'data-affiliate-id': affiliate.id,
+                                                            'class': 'btn-sm'
+                                                        }
+                                                    }) %>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <% if (affiliates.length === 0) { %>
+                    <div class="empty-state">
+                        <div class="empty-icon">🤝</div>
+                        <h3>Henüz affiliate yok</h3>
+                        <p>İlk affiliate kodunuzu oluşturmak için "Yeni Affiliate" butonuna tıklayın.</p>
+                        <%- include('../partials/components/button', {
+                            type: 'primary',
+                            text: 'Yeni Affiliate Ekle',
+                            icon: '➕',
+                            action: 'open-add-affiliate-modal',
+                            attributes: {}
+                        }) %>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Affiliate Modal -->
+    <div class="modal" id="addAffiliateModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Yeni Affiliate Ekle</h3>
+                <button class="modal-close" data-action="close-add-affiliate-modal">✕</button>
+            </div>
+            <form id="addAffiliateForm" 
+                  hx-post="/<%= tenantDomain %>/api/affiliates" 
+                  hx-target="#affiliates-table-body" 
+                  hx-swap="outerHTML">
+                <div class="modal-body">
+                    <%- include('../partials/components/form-group', {
+                        id: 'affiliate_code',
+                        name: 'affiliate_code',
+                        type: 'text',
+                        label: 'Affiliate Kodu',
+                        placeholder: 'Otomatik oluşturulacak (isteğe bağlı)',
+                        help: 'Boş bırakırsanız otomatik oluşturulur'
+                    }) %>
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'owner_customer_id',
+                        name: 'owner_customer_id',
+                        type: 'select',
+                        label: 'Müşteri',
+                        required: true,
+                        options: customers.map(c => ({ value: c.id, text: `${c.name} (${c.email})` }))
+                    }) %>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <%- include('../partials/components/form-group', {
+                            id: 'commission_rate',
+                            name: 'commission_rate',
+                            type: 'number',
+                            label: 'Komisyon Oranı (%)',
+                            placeholder: '5.00',
+                            value: '5.00',
+                            attributes: { step: '0.01', min: '0', max: '100' }
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'affiliate_status',
+                            name: 'status',
+                            type: 'select',
+                            label: 'Durum',
+                            options: [
+                                { value: 'active', text: 'Aktif' },
+                                { value: 'inactive', text: 'Pasif' }
+                            ]
+                        }) %>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <%- include('../partials/components/button', {
+                        type: 'secondary',
+                        text: 'İptal',
+                        action: 'close-add-affiliate-modal'
+                    }) %>
+                    <%- include('../partials/components/button', {
+                        type: 'primary',
+                        text: 'Affiliate Ekle'
+                    }) %>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Affiliate Modal -->
+    <div class="modal" id="editAffiliateModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Affiliate Düzenle</h3>
+                <button class="modal-close" data-action="close-edit-affiliate-modal">✕</button>
+            </div>
+            <form id="editAffiliateForm">
+                <div class="modal-body">
+                    <input type="hidden" id="edit_affiliate_id" name="id">
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'edit_affiliate_code',
+                        name: 'affiliate_code',
+                        type: 'text',
+                        label: 'Affiliate Kodu',
+                        readonly: true,
+                        help: 'Affiliate kodları değiştirilemez'
+                    }) %>
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'edit_owner_customer_id',
+                        name: 'owner_customer_id',
+                        type: 'select',
+                        label: 'Müşteri',
+                        required: true,
+                        options: customers.map(c => ({ value: c.id, text: `${c.name} (${c.email})` }))
+                    }) %>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_commission_rate',
+                            name: 'commission_rate',
+                            type: 'number',
+                            label: 'Komisyon Oranı (%)',
+                            required: true,
+                            attributes: { step: '0.01', min: '0', max: '100' }
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_affiliate_status',
+                            name: 'status',
+                            type: 'select',
+                            label: 'Durum',
+                            options: [
+                                { value: 'active', text: 'Aktif' },
+                                { value: 'inactive', text: 'Pasif' }
+                            ]
+                        }) %>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <%- include('../partials/components/button', {
+                        type: 'secondary',
+                        text: 'İptal',
+                        action: 'close-edit-affiliate-modal'
+                    }) %>
+                    <%- include('../partials/components/button', {
+                        type: 'primary',
+                        text: 'Affiliate Güncelle',
+                        icon: '💾'
+                    }) %>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Affiliate Detail Modal -->
+    <div class="modal modal-lg" id="affiliateDetailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📋 Affiliate Detayları</h3>
+                <button class="modal-close" data-action="close-affiliate-detail-modal">✕</button>
+            </div>
+            <div class="modal-body" id="affiliateDetailContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <%- include('../partials/components/button', {
+                    type: 'secondary',
+                    text: 'Kapat',
+                    action: 'close-affiliate-detail-modal'
+                }) %>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/ui.js"></script>
+    <script src="/js/dashboard.js"></script>
+    <script>
+        // Initialize affiliate management when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof window.initializeAffiliateManagement === 'function') {
+                window.initializeAffiliateManagement('<%= tenantDomain %>');
+            }
+        });
+    </script>
+</body>
+</html> 

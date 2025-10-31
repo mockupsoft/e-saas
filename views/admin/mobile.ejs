@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        .mobile-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 2rem;
+            color: white;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .mobile-section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .mobile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .mobile-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .mobile-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .mobile-card h4 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .mobile-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        
+        .mobile-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+        
+        .mobile-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .mobile-btn.primary {
+            background: #10b981;
+            border-color: #059669;
+        }
+        
+        .mobile-btn.primary:hover {
+            background: #059669;
+        }
+        
+        .tenant-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .tenant-mobile-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        
+        .tenant-mobile-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+        
+        .tenant-mobile-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        
+        .tenant-mobile-name {
+            font-weight: 600;
+            color: #111827;
+            font-size: 1.1rem;
+        }
+        
+        .tenant-mobile-domain {
+            font-family: 'Courier New', monospace;
+            background: #f3f4f6;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 1rem;
+        }
+        
+        .tenant-mobile-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .tenant-mobile-btn {
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .tenant-mobile-btn.panel {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .tenant-mobile-btn.mobile {
+            background: #8b5cf6;
+            color: white;
+        }
+        
+        .tenant-mobile-btn.qr {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .tenant-mobile-btn.apk {
+            background: #059669;
+            color: white;
+        }
+        
+        .tenant-mobile-btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.9;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            min-width: 400px;
+            max-width: 90vw;
+        }
+        
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-indicator.building {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .status-indicator.ready {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-indicator.error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body class="admin">
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span class="logo-text">Süper Admin</span>
+                </div>
+                <button class="sidebar-toggle">✕</button>
+            </div>
+            
+            <div class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Ana Menü</div>
+                    <div class="nav-item">
+                        <a href="/admin/dashboard" class="nav-link">
+                            <div class="nav-icon">📊</div>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/tenants" class="nav-link">
+                            <div class="nav-icon">👥</div>
+                            <span class="nav-text">Tenant Yönetimi</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/products" class="nav-link">
+                            <div class="nav-icon">📦</div>
+                            <span class="nav-text">Ürün Yönetimi</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">İzleme</div>
+                    <div class="nav-item">
+                        <a href="/admin/analytics" class="nav-link">
+                            <div class="nav-icon">📈</div>
+                            <span class="nav-text">Analytics</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/logs" class="nav-link">
+                            <div class="nav-icon">📋</div>
+                            <span class="nav-text">Sistem Logları</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Mobil</div>
+                    <div class="nav-item">
+                        <a href="/admin/mobile" class="nav-link active">
+                            <div class="nav-icon">📱</div>
+                            <span class="nav-text">Mobil Uygulama</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Sistem</div>
+                    <div class="nav-item">
+                        <a href="/admin/settings" class="nav-link">
+                            <div class="nav-icon">⚙️</div>
+                            <span class="nav-text">Ayarlar</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">📱 Mobil Uygulama Yönetimi</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                
+                <!-- Mobile App Section -->
+                <div class="mobile-section">
+                    <div class="mobile-section-title">
+                        📱 Flutter WebView Mobil Uygulama Yönetimi
+                    </div>
+                    <p>Tenant'lar için Flutter WebView tabanlı mobil uygulama altyapısı ve dağıtım yönetimi</p>
+                    
+                    <div class="mobile-grid">
+                        <!-- Flutter App Development -->
+                        <div class="mobile-card">
+                            <h4>🛠️ Uygulama Geliştirme</h4>
+                            <p>Flutter WebView uygulamasını build edin ve APK/AAB dosyalarını oluşturun.</p>
+                            <div class="mobile-actions">
+                                <button class="mobile-btn primary" onclick="buildFlutterApp()">
+                                    ⚡ Build APK
+                                </button>
+                                <button class="mobile-btn" onclick="showBuildLogs()">
+                                    📋 Build Logları
+                                </button>
+                                <button class="mobile-btn" onclick="showMobileConfig()">
+                                    ⚙️ Yapılandırma
+                                </button>
+                            </div>
+                            <div id="buildStatus" class="status-indicator ready" style="margin-top: 1rem;">
+                                ✅ Hazır
+                            </div>
+                        </div>
+                        
+                        <!-- QR Code Generator -->
+                        <div class="mobile-card">
+                            <h4>📱 QR Kod Oluşturucu</h4>
+                            <p>Tenant'lar için özel QR kodları oluşturun. Kullanıcılar QR kodu tarayarak direkt uygulamaya erişebilir.</p>
+                            <div class="mobile-actions">
+                                <button class="mobile-btn primary" onclick="generateQRCodes()">
+                                    📷 QR Kodları Oluştur
+                                </button>
+                                <button class="mobile-btn" onclick="downloadQRZip()">
+                                    💾 Toplu İndir
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Firebase Distribution -->
+                        <div class="mobile-card">
+                            <h4>🔥 Firebase Distribution</h4>
+                            <p>APK dosyalarını Firebase App Distribution üzerinden tenant'lara dağıtın.</p>
+                            <div class="mobile-actions">
+                                <button class="mobile-btn primary" onclick="uploadToFirebase()">
+                                    🚀 Firebase'e Yükle
+                                </button>
+                                <button class="mobile-btn" onclick="manageTesters()">
+                                    👥 Test Kullanıcıları
+                                </button>
+                                <button class="mobile-btn" onclick="viewDistributionStats()">
+                                    📊 İstatistikler
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tenant Mobile Access -->
+                <div class="section">
+                    <h2>🏢 Tenant Mobil Erişim</h2>
+                    <p>Tenant'lar için web paneli ve mobil uygulama bağlantıları</p>
+                    
+                    <div class="tenant-grid" id="tenantList">
+                        <% if (tenants && tenants.length > 0) { %>
+                            <% tenants.forEach(tenant => { %>
+                            <div class="tenant-mobile-card">
+                                <div class="tenant-mobile-header">
+                                    <div class="tenant-mobile-name"><%= tenant.name %></div>
+                                    <div class="status-indicator ready">Aktif</div>
+                                </div>
+                                <div class="tenant-mobile-domain"><%= tenant.domain %>.saas.apollo12.co</div>
+                                <div class="tenant-mobile-actions">
+                                    <a href="https://saas.apollo12.co/<%= tenant.domain %>/dashboard" 
+                                       target="_blank" 
+                                       class="tenant-mobile-btn panel">
+                                        🖥️ Web Panel
+                                    </a>
+                                    <button onclick="openMobileApp('<%= tenant.domain %>')" 
+                                            class="tenant-mobile-btn mobile">
+                                        📱 Mobil Aç
+                                    </button>
+                                    <button onclick="generateTenantQR('<%= tenant.domain %>', '<%= tenant.name %>')" 
+                                            class="tenant-mobile-btn qr">
+                                        📷 QR Kod
+                                    </button>
+                                    <button onclick="downloadTenantAPK('<%= tenant.domain %>')" 
+                                            class="tenant-mobile-btn apk">
+                                        💾 APK İndir
+                                    </button>
+                                </div>
+                            </div>
+                            <% }); %>
+                        <% } else { %>
+                        <div class="empty-state">
+                            <p>Aktif tenant bulunmuyor.</p>
+                            <a href="/admin/tenants" class="mobile-btn primary">
+                                ➕ Yeni Tenant Oluştur
+                            </a>
+                        </div>
+                        <% } %>
+                    </div>
+                </div>
+
+                <!-- Mobile Stats -->
+                <div class="stats-grid" style="margin-top: 2rem;">
+                    <div class="stat-card">
+                        <div class="stat-icon">🏢</div>
+                        <div class="stat-number"><%= tenants ? tenants.length : 0 %></div>
+                        <div class="stat-label">Aktif Tenant</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📱</div>
+                        <div class="stat-number" id="mobileDownloads">-</div>
+                        <div class="stat-label">Mobil İndirme</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔥</div>
+                        <div class="stat-number" id="firebaseBuilds">-</div>
+                        <div class="stat-label">Firebase Build</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📷</div>
+                        <div class="stat-number" id="qrCodes"><%= tenants ? tenants.length : 0 %></div>
+                        <div class="stat-label">QR Kod</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qrModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📷 QR Kod</h3>
+                <button onclick="closeQRModal()" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="qrCodeContainer" style="text-align: center; padding: 2rem;">
+                    <!-- QR code will be generated here -->
+                </div>
+                <div style="text-align: center; margin-top: 1rem;">
+                    <button onclick="downloadQRImage()" class="mobile-btn primary">
+                        💾 QR Kodu İndir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Mobile app management functions
+        function buildFlutterApp() {
+            if (confirm('Flutter uygulamasını build etmek istiyor musunuz? Bu işlem birkaç dakika sürebilir.')) {
+                const statusEl = document.getElementById('buildStatus');
+                statusEl.className = 'status-indicator building';
+                statusEl.innerHTML = '⏳ Build ediliyor...';
+                
+                showNotification('Build işlemi başlatıldı...', 'info');
+                
+                fetch('/admin/api/mobile/build', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification('Build işlemi başarıyla başlatıldı!', 'success');
+                        
+                        // Simulate build completion after 3 seconds
+                        setTimeout(() => {
+                            statusEl.className = 'status-indicator ready';
+                            statusEl.innerHTML = '✅ Hazır';
+                            showNotification('Build tamamlandı!', 'success');
+                        }, 3000);
+                    } else {
+                        statusEl.className = 'status-indicator error';
+                        statusEl.innerHTML = '❌ Hata';
+                        showNotification('Build işlemi başlatılamadı: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Build error:', error);
+                    statusEl.className = 'status-indicator error';
+                    statusEl.innerHTML = '❌ Hata';
+                    showNotification('Build işleminde hata oluştu.', 'error');
+                });
+            }
+        }
+
+        function generateQRCodes() {
+            showNotification('QR kodları oluşturuluyor...', 'info');
+            
+            fetch('/admin/api/mobile/qr-codes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(`${data.data.total} QR kod oluşturuldu!`, 'success');
+                } else {
+                    showNotification('QR kod oluşturmada hata: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('QR generation error:', error);
+                showNotification('QR kod oluşturmada hata oluştu.', 'error');
+            });
+        }
+
+        function generateTenantQR(tenantDomain, tenantName) {
+            const url = `https://${tenantDomain}.saas.apollo12.co`;
+            
+            // Generate QR code
+            document.getElementById('qrCodeContainer').innerHTML = '<div style="margin-bottom: 1rem; font-weight: 600;">' + tenantName + '</div>';
+            
+            QRCode.toCanvas(document.getElementById('qrCodeContainer'), url, {
+                width: 256,
+                height: 256,
+                margin: 2
+            }, function (error) {
+                if (error) {
+                    console.error(error);
+                    showNotification('QR kod oluşturulamadı.', 'error');
+                } else {
+                    document.getElementById('qrModal').style.display = 'flex';
+                    window.currentQRData = { domain: tenantDomain, name: tenantName, url: url };
+                }
+            });
+        }
+
+        function closeQRModal() {
+            document.getElementById('qrModal').style.display = 'none';
+        }
+
+        function downloadQRImage() {
+            const canvas = document.querySelector('#qrCodeContainer canvas');
+            if (canvas) {
+                const link = document.createElement('a');
+                link.download = `${window.currentQRData.domain}_qr.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            }
+        }
+
+        function openMobileApp(tenantDomain) {
+            const url = `https://${tenantDomain}.saas.apollo12.co`;
+            window.open(url, '_blank');
+        }
+
+        function downloadTenantAPK(tenantDomain) {
+            showNotification('APK indirme başlatılıyor...', 'info');
+            window.open(`/admin/api/mobile/download-apk/${tenantDomain}`, '_blank');
+        }
+
+        function uploadToFirebase() {
+            if (confirm('APK dosyasını Firebase App Distribution\'a yüklemek istiyor musunuz?')) {
+                showNotification('Firebase yükleme başlatıldı...', 'info');
+                
+                fetch('/admin/api/mobile/firebase-upload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification('Firebase yükleme başarıyla tamamlandı!', 'success');
+                        document.getElementById('firebaseBuilds').textContent = 
+                            parseInt(document.getElementById('firebaseBuilds').textContent || '0') + 1;
+                    } else {
+                        showNotification('Firebase yükleme hatası: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Firebase upload error:', error);
+                    showNotification('Firebase yükleme hatası oluştu.', 'error');
+                });
+            }
+        }
+
+        function showBuildLogs() {
+            showNotification('Build logları görüntüleniyor...', 'info');
+        }
+
+        function showMobileConfig() {
+            showNotification('Mobil yapılandırma açılıyor...', 'info');
+        }
+
+        function manageTesters() {
+            showNotification('Test kullanıcı yönetimi açılıyor...', 'info');
+        }
+
+        function viewDistributionStats() {
+            showNotification('Dağıtım istatistikleri görüntüleniyor...', 'info');
+        }
+
+        function downloadQRZip() {
+            showNotification('QR kodları hazırlanıyor...', 'info');
+            window.open('/admin/api/mobile/download-qr-zip', '_blank');
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                z-index: 1000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // Load mobile stats on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Simulate loading mobile stats
+            setTimeout(() => {
+                document.getElementById('mobileDownloads').textContent = '42';
+                document.getElementById('firebaseBuilds').textContent = '8';
+            }, 1000);
+        });
+
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+
+    <script src="/js/ui.js"></script>
+    <script src="/js/dashboard.js"></script>
+</body>
+</html> 

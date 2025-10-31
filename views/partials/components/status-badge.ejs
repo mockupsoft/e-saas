@@ -1,0 +1,30 @@
+<%# 
+Status Badge Component
+Parameters:
+- status: 'active', 'inactive', 'pending', 'suspended', 'success', 'error', 'warning'
+- text: Display text (if not provided, uses status as text)
+- size: 'sm', 'md', 'lg' (default: 'md')
+- className: Additional CSS classes
+%>
+
+<%
+// Define status mappings
+const statusConfig = {
+    'active': { text: 'Aktif', class: 'status-active' },
+    'inactive': { text: 'Pasif', class: 'status-inactive' },
+    'pending': { text: 'Beklemede', class: 'status-pending' },
+    'suspended': { text: 'Askıda', class: 'status-suspended' },
+    'success': { text: 'Başarılı', class: 'status-success' },
+    'error': { text: 'Hata', class: 'status-error' },
+    'warning': { text: 'Uyarı', class: 'status-warning' },
+    'info': { text: 'Bilgi', class: 'status-info' }
+};
+
+const config = statusConfig[typeof status !== 'undefined' ? status : 'default'] || { text: status, class: 'status-default' };
+const displayText = typeof text !== 'undefined' ? text : config.text;
+const sizeClass = typeof size !== 'undefined' && size ? `status-badge-${size}` : '';
+%>
+
+<span class="status-badge <%= config.class %> <%= sizeClass %> <%= typeof className !== 'undefined' ? className : '' %>">
+    <%= displayText %>
+</span> 

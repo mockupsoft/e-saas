@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= tenantName %> - Bildirimler</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+</head>
+<body class="tenant">
+    <div class="dashboard-layout">
+        <%- include('../partials/tenant-navigation', { activePage: 'notifications' }) %>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">🔔 Bildirimler</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span id="unread-count-badge" class="unread-count-badge" style="display: none;">0 okunmamış</span>
+                        <button onclick="markAllAsRead()" class="btn btn-outline" id="mark-all-read-btn" style="display: none;">
+                            Tümünü Okundu İşaretle
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Filters -->
+                <div class="notifications-filters">
+                    <div class="filter-group">
+                        <button class="filter-btn active" data-filter="all" onclick="filterNotifications('all')">
+                            Tümü
+                        </button>
+                        <button class="filter-btn" data-filter="unread" onclick="filterNotifications('unread')">
+                            Okunmamış
+                        </button>
+                        <button class="filter-btn" data-filter="success" onclick="filterNotifications('success')">
+                            Başarılı
+                        </button>
+                        <button class="filter-btn" data-filter="warning" onclick="filterNotifications('warning')">
+                            Uyarı
+                        </button>
+                        <button class="filter-btn" data-filter="danger" onclick="filterNotifications('danger')">
+                            Hata
+                        </button>
+                        <button class="filter-btn" data-filter="info" onclick="filterNotifications('info')">
+                            Bilgi
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Notifications List -->
+                <div class="notifications-container">
+                    <div id="notifications-loading" class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <p>Bildirimler yükleniyor...</p>
+                    </div>
+                    
+                    <div id="notifications-list" style="display: none;">
+                        <!-- Notifications will be loaded here -->
+                    </div>
+                    
+                    <div id="notifications-empty" class="empty-state" style="display: none;">
+                        <div class="empty-icon">🔔</div>
+                        <h3>Henüz bildirim yok</h3>
+                        <p>Sistem bildirimleri burada görünecek</p>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div id="notifications-pagination" class="pagination-container" style="display: none;">
+                    <button class="pagination-btn" id="prev-page" onclick="changePage(-1)" disabled>
+                        ← Önceki
+                    </button>
+                    <span id="page-info">1 / 1</span>
+                    <button class="pagination-btn" id="next-page" onclick="changePage(1)" disabled>
+                        Sonraki →
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <style>
+    .unread-count-badge {
+        background: #ef4444;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .notifications-filters {
+        margin-bottom: 2rem;
+    }
+
+    .filter-group {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-btn {
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .filter-btn:hover {
+        background: #f9fafb;
+    }
+
+    .filter-btn.active {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+
+    .notifications-container {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .loading-state, .empty-state {
+        padding: 3rem;
+        text-align: center;
+        color: #6b7280;
+    }
+
+    .loading-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid #f3f4f6;
+        border-top: 3px solid #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+        margin: 0 0 0.5rem 0;
+        color: #1f2937;
+    }
+
+    .notification-card {
+        padding: 1.5rem;
+        border-bottom: 1px solid #f3f4f6;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .notification-card:hover {
+        background: #f9fafb;
+    }
+
+    .notification-card.unread {
+        background: #eff6ff;
+        border-left: 4px solid #3b82f6;
+    }
+
+    .notification-card.unread:hover {
+        background: #dbeafe;
+    }
+
+    .notification-card:last-child {
+        border-bottom: none;
+    }
+
+    .notification-card-icon {
+        font-size: 1.5rem;
+        margin-top: 0.25rem;
+    }
+
+    .notification-card-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .notification-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.5rem;
+    }
+
+    .notification-card-title {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 1rem;
+        line-height: 1.4;
+    }
+
+    .notification-card-time {
+        color: #9ca3af;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        margin-left: 1rem;
+    }
+
+    .notification-card-message {
+        color: #6b7280;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        margin-bottom: 0.75rem;
+    }
+
+    .notification-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .notification-type-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .notification-type-success {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .notification-type-info {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .notification-type-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .notification-type-danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .unread-indicator {
+        width: 8px;
+        height: 8px;
+        background: #3b82f6;
+        border-radius: 50%;
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .pagination-btn {
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.875rem;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+        background: #f9fafb;
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    #page-info {
+        font-size: 0.875rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    @media (max-width: 768px) {
+        .filter-group {
+            justify-content: center;
+        }
+
+        .notification-card {
+            padding: 1rem;
+        }
+
+        .notification-card-header {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .notification-card-time {
+            margin-left: 0;
+        }
+    }
+    </style>
+
+    <script>
+    let currentPage = 1;
+    let totalPages = 1;
+    let currentFilter = 'all';
+    let allNotifications = [];
+    let filteredNotifications = [];
+
+    // Initialize notifications when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAllNotifications();
+    });
+
+    // Load all notifications
+    async function loadAllNotifications() {
+        showLoading();
+        
+        try {
+            const response = await fetch('/<%= tenantDomain %>/api/notifications/all?limit=50');
+            const data = await response.json();
+            
+            if (data.success) {
+                allNotifications = data.data.notifications;
+                updateUnreadCount(data.data.unread_count);
+                filterNotifications(currentFilter);
+                hideLoading();
+            } else {
+                showEmpty();
+            }
+        } catch (error) {
+            console.error('Bildirimler yükleme hatası:', error);
+            showEmpty();
+        }
+    }
+
+    // Filter notifications
+    function filterNotifications(filter) {
+        currentFilter = filter;
+        currentPage = 1;
+        
+        // Update filter buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.filter === filter) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // Filter notifications
+        if (filter === 'all') {
+            filteredNotifications = allNotifications;
+        } else if (filter === 'unread') {
+            filteredNotifications = allNotifications.filter(n => !n.is_read);
+        } else {
+            filteredNotifications = allNotifications.filter(n => n.type === filter);
+        }
+        
+        displayNotifications();
+    }
+
+    // Display notifications with pagination
+    function displayNotifications() {
+        const listElement = document.getElementById('notifications-list');
+        const perPage = 10;
+        totalPages = Math.ceil(filteredNotifications.length / perPage);
+        
+        if (filteredNotifications.length === 0) {
+            showEmpty();
+            return;
+        }
+        
+        const startIndex = (currentPage - 1) * perPage;
+        const endIndex = startIndex + perPage;
+        const pageNotifications = filteredNotifications.slice(startIndex, endIndex);
+        
+        const notificationItems = pageNotifications.map(notification => {
+            const timeAgo = getTimeAgo(notification.created_at);
+            const isUnread = !notification.is_read;
+            
+            return `
+                <div class="notification-card ${isUnread ? 'unread' : ''}" onclick="markNotificationAsRead(${notification.id})">
+                    <div class="notification-card-icon">${notification.icon}</div>
+                    <div class="notification-card-content">
+                        <div class="notification-card-header">
+                            <div class="notification-card-title">${escapeHtml(notification.title)}</div>
+                            <div class="notification-card-time">${timeAgo}</div>
+                        </div>
+                        <div class="notification-card-message">${escapeHtml(notification.message)}</div>
+                        <div class="notification-card-footer">
+                            <span class="notification-type-badge notification-type-${notification.type}">
+                                ${getTypeName(notification.type)}
+                            </span>
+                            ${isUnread ? '<div class="unread-indicator"></div>' : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        listElement.innerHTML = notificationItems.join('');
+        listElement.style.display = 'block';
+        
+        updatePagination();
+    }
+
+    // Update pagination
+    function updatePagination() {
+        const paginationElement = document.getElementById('notifications-pagination');
+        const prevBtn = document.getElementById('prev-page');
+        const nextBtn = document.getElementById('next-page');
+        const pageInfo = document.getElementById('page-info');
+        
+        if (totalPages > 1) {
+            paginationElement.style.display = 'flex';
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPages;
+            pageInfo.textContent = `${currentPage} / ${totalPages}`;
+        } else {
+            paginationElement.style.display = 'none';
+        }
+    }
+
+    // Change page
+    function changePage(direction) {
+        const newPage = currentPage + direction;
+        if (newPage >= 1 && newPage <= totalPages) {
+            currentPage = newPage;
+            displayNotifications();
+        }
+    }
+
+    // Update unread count
+    function updateUnreadCount(count) {
+        const badge = document.getElementById('unread-count-badge');
+        const markAllBtn = document.getElementById('mark-all-read-btn');
+        
+        if (count > 0) {
+            badge.textContent = `${count} okunmamış`;
+            badge.style.display = 'inline-block';
+            markAllBtn.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+            markAllBtn.style.display = 'none';
+        }
+    }
+
+    // Mark notification as read
+    async function markNotificationAsRead(notificationId) {
+        try {
+            const response = await fetch(`/<%= tenantDomain %>/api/notifications/${notificationId}/read`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                // Update the notification in our local array
+                const notification = allNotifications.find(n => n.id === notificationId);
+                if (notification) {
+                    notification.is_read = true;
+                }
+                
+                updateUnreadCount(data.data.unread_count);
+                filterNotifications(currentFilter);
+            }
+        } catch (error) {
+            console.error('Bildirim okundu işaretleme hatası:', error);
+        }
+    }
+
+    // Mark all notifications as read
+    async function markAllAsRead() {
+        try {
+            const response = await fetch('/<%= tenantDomain %>/api/notifications/mark-all-read', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                // Update all notifications as read
+                allNotifications.forEach(n => n.is_read = true);
+                
+                updateUnreadCount(0);
+                filterNotifications(currentFilter);
+            }
+        } catch (error) {
+            console.error('Tüm bildirimleri okundu işaretleme hatası:', error);
+        }
+    }
+
+    // Show loading state
+    function showLoading() {
+        document.getElementById('notifications-loading').style.display = 'block';
+        document.getElementById('notifications-list').style.display = 'none';
+        document.getElementById('notifications-empty').style.display = 'none';
+        document.getElementById('notifications-pagination').style.display = 'none';
+    }
+
+    // Hide loading state
+    function hideLoading() {
+        document.getElementById('notifications-loading').style.display = 'none';
+    }
+
+    // Show empty state
+    function showEmpty() {
+        document.getElementById('notifications-loading').style.display = 'none';
+        document.getElementById('notifications-list').style.display = 'none';
+        document.getElementById('notifications-empty').style.display = 'block';
+        document.getElementById('notifications-pagination').style.display = 'none';
+    }
+
+    // Helper functions
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function getTimeAgo(dateString) {
+        const now = new Date();
+        const past = new Date(dateString);
+        const diffInSeconds = Math.floor((now - past) / 1000);
+        
+        if (diffInSeconds < 60) {
+            return 'Az önce';
+        } else if (diffInSeconds < 3600) {
+            const minutes = Math.floor(diffInSeconds / 60);
+            return `${minutes} dakika önce`;
+        } else if (diffInSeconds < 86400) {
+            const hours = Math.floor(diffInSeconds / 3600);
+            return `${hours} saat önce`;
+        } else {
+            const days = Math.floor(diffInSeconds / 86400);
+            return `${days} gün önce`;
+        }
+    }
+
+    function getTypeName(type) {
+        const typeNames = {
+            'success': 'Başarılı',
+            'info': 'Bilgi',
+            'warning': 'Uyarı',
+            'danger': 'Hata'
+        };
+        return typeNames[type] || 'Bilgi';
+    }
+    </script>
+</body>
+</html> 

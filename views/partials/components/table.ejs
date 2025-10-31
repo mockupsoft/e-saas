@@ -1,0 +1,69 @@
+<%# 
+Table Component
+Parameters:
+- headers: Array of header objects {text, sortable}
+- rows: Array of row data
+- actions: Array of action buttons for each row
+- emptyText: Text to show when no data
+- className: Additional CSS classes
+%>
+
+<div class="table-container <%= className || '' %>">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <% headers.forEach(function(header) { %>
+                <th <% if (header.sortable) { %>class="sortable"<% } %>>
+                    <%= header.text %>
+                    <% if (header.sortable) { %>
+                    <span class="sort-icon">↕️</span>
+                    <% } %>
+                </th>
+                <% }); %>
+                <% if (typeof actions !== 'undefined' && actions && actions.length > 0) { %>
+                <th>İşlemler</th>
+                <% } %>
+            </tr>
+        </thead>
+        <tbody id="<%= id || 'table' %>-body">
+            <% if (rows && rows.length > 0) { %>
+                <% rows.forEach(function(row) { %>
+                <tr>
+                    <% headers.forEach(function(header) { %>
+                    <td>
+                        <% if (header.render) { %>
+                            <%- header.render(row[header.key], row) %>
+                        <% } else { %>
+                            <%= row[header.key] || '-' %>
+                        <% } %>
+                    </td>
+                    <% }); %>
+                    <% if (typeof actions !== 'undefined' && actions && actions.length > 0) { %>
+                    <td>
+                        <div class="action-buttons">
+                            <% actions.forEach(function(action) { %>
+                            <button 
+                                class="btn-sm <%= action.class || 'btn-outline' %>"
+                                data-action="<%= action.action %>"
+                                <% if (action.dataKey) { %>data-<%= action.dataKey %>="<%= row[action.dataValue] %>"<% } %>>
+                                <%= action.icon %> <%= action.text %>
+                            </button>
+                            <% }); %>
+                        </div>
+                    </td>
+                    <% } %>
+                </tr>
+                <% }); %>
+            <% } else { %>
+            <tr>
+                <td colspan="<%= headers.length + (actions ? 1 : 0) %>" class="text-center">
+                    <div class="empty-state-mini">
+                        <div class="empty-icon">📄</div>
+                        <p><%= emptyMessage || 'Veri bulunamadı' %></p>
+                    </div>
+                </td>
+            </tr>
+            <% } %>
+        </tbody>
+    </table>
+</div> 

@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Yedekleme - Süper Admin</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <style>
+        .backup-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .backup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            color: white;
+        }
+
+        .backup-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+                 .backup-actions {
+             display: flex;
+             gap: 1rem;
+             margin-bottom: 2rem;
+             flex-wrap: wrap;
+         }
+
+         .backup-create-form {
+             display: flex;
+             gap: 0.5rem;
+             align-items: center;
+             flex: 1;
+             min-width: 300px;
+         }
+
+         .backup-create-form input {
+             flex: 1;
+             min-width: 200px;
+         }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+                 .btn:disabled {
+             opacity: 0.5;
+             cursor: not-allowed;
+         }
+
+         .btn-small {
+             padding: 0.25rem 0.5rem;
+             font-size: 0.75rem;
+             border: none;
+             border-radius: 4px;
+             cursor: pointer;
+             margin-left: 0.5rem;
+             background: #f3f4f6;
+             color: #374151;
+             transition: all 0.2s ease;
+         }
+
+         .btn-small:hover {
+             background: #e5e7eb;
+         }
+
+         .btn-edit {
+             background: #fef3c7;
+             color: #92400e;
+         }
+
+         .btn-edit:hover {
+             background: #fde68a;
+         }
+
+         .backup-info h3 {
+             display: flex;
+             align-items: center;
+             margin: 0 0 0.5rem 0;
+         }
+
+        .backup-list {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .backup-list-header {
+            background: #f9fafb;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .backup-item {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .backup-item:last-child {
+            border-bottom: none;
+        }
+
+        .backup-info h3 {
+            margin: 0 0 0.5rem 0;
+            color: #1f2937;
+            font-size: 1.1rem;
+        }
+
+        .backup-details {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .backup-size {
+            font-weight: 500;
+            color: #059669;
+        }
+
+        .backup-actions-item {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .progress-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .progress-modal {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .progress-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+
+        .log-viewer {
+            background: #1f2937;
+            color: #f9fafb;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            padding: 1rem;
+            border-radius: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .log-line {
+            margin-bottom: 0.25rem;
+            word-wrap: break-word;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: #374151;
+        }
+        
+    </style>
+</head>
+<body class="admin">
+    <div class="dashboard-layout">
+                <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span class="logo-text">Süper Admin</span>
+                </div>
+                <button class="sidebar-toggle">✕</button>
+            </div>
+            
+            <div class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Ana Menü</div>
+                    <div class="nav-item">
+                        <a href="/admin/dashboard" class="nav-link">
+                            <div class="nav-icon">📊</div>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/tenants" class="nav-link">
+                            <div class="nav-icon">👥</div>
+                            <span class="nav-text">Tenant Yönetimi</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/products" class="nav-link">
+                            <div class="nav-icon">📦</div>
+                            <span class="nav-text">Ürün Yönetimi</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">İzleme</div>
+                    <div class="nav-item">
+                        <a href="/admin/analytics" class="nav-link">
+                            <div class="nav-icon">📈</div>
+                            <span class="nav-text">Analytics</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/logs" class="nav-link">
+                            <div class="nav-icon">📋</div>
+                            <span class="nav-text">Sistem Logları</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Mobil</div>
+                    <div class="nav-item">
+                        <a href="/admin/mobile" class="nav-link">
+                            <div class="nav-icon">📱</div>
+                            <span class="nav-text">Mobil Uygulama</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Sistem</div>
+                    <div class="nav-item">
+                        <a href="/admin/settings" class="nav-link">
+                            <div class="nav-icon">⚙️</div>
+                            <span class="nav-text">Ayarlar</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/backup" class="nav-link active">
+                            <div class="nav-icon">💾</div>
+                            <span class="nav-text">Yedekleme</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+                <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">💾 Sistem Yedekleme</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                </div>
+            </header>
+            
+            <div class="backup-container">
+        <div class="backup-header">
+            <div>
+                <h1>Sistem Yedekleme</h1>
+                <p>Tüm dosyalar ve veritabanlarının yedeklenmesi ve geri yüklenmesi</p>
+            </div>
+            <div>
+                <button id="refreshBtn" class="btn btn-secondary">
+                    🔄 Yenile
+                </button>
+            </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alertContainer"></div>
+
+        <!-- Backup Statistics -->
+        <div class="backup-stats">
+            <div class="stat-card">
+                <div class="stat-value"><%= totalBackups %></div>
+                <div class="stat-label">Toplam Backup</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value"><%= (totalSize / 1024 / 1024 / 1024).toFixed(2) %> GB</div>
+                <div class="stat-label">Toplam Boyut</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="lastBackupDate">
+                    <% if (backups.length > 0) { %>
+                        <%= new Date(backups[0].created).toLocaleDateString('tr-TR') %>
+                    <% } else { %>
+                        -
+                    <% } %>
+                </div>
+                <div class="stat-label">Son Backup</div>
+            </div>
+        </div>
+
+                 <!-- Backup Actions -->
+         <div class="backup-actions">
+             <div class="backup-create-form">
+                 <input type="text" id="backupNameInput" placeholder="Backup adı (opsiyonel)" maxlength="50" style="padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; margin-right: 0.5rem; flex: 1;">
+                 <button id="createBackupBtn" class="btn btn-primary">
+                     💾 Yedek Al
+                 </button>
+             </div>
+             <button id="viewLogsBtn" class="btn btn-secondary">
+                 📋 Logları Görüntüle
+             </button>
+             <button id="refreshListBtn" class="btn btn-secondary">
+                 🔄 Listeyi Yenile
+             </button>
+         </div>
+
+        <!-- Backup List -->
+        <div class="backup-list">
+            <div class="backup-list-header">
+                Mevcut Backup'lar
+            </div>
+            
+            <div id="backupListContainer">
+                <% if (backups.length === 0) { %>
+                    <div class="empty-state">
+                        <h3>Henüz backup bulunmuyor</h3>
+                        <p>"Yedek Al" butonuna tıklayarak ilk backup'ınızı oluşturun</p>
+                    </div>
+                <% } else { %>
+                                         <% backups.forEach(backup => { %>
+                         <div class="backup-item" data-backup-id="<%= backup.id %>">
+                             <div class="backup-info">
+                                 <h3>
+                                     <span class="backup-name" data-backup-id="<%= backup.id %>">
+                                         <% if (backup.name) { %>
+                                             <%= backup.name %> 
+                                             <small style="color: #6b7280; font-weight: normal;">(<%= backup.id %>)</small>
+                                         <% } else { %>
+                                             <%= backup.id %>
+                                         <% } %>
+                                     </span>
+                                     <button class="btn-small btn-edit edit-name-btn" data-backup-id="<%= backup.id %>" data-current-name="<%= backup.name || '' %>" title="Adı düzenle">
+                                         ✏️
+                                     </button>
+                                 </h3>
+                                 <div class="backup-details">
+                                     <span>📅 <%= new Date(backup.created).toLocaleString('tr-TR') %></span>
+                                     <span class="backup-size">💾 <%= (backup.size / 1024 / 1024).toFixed(2) %> MB</span>
+                                     <% if (backup.databases) { %>
+                                         <span>🗄️ <%= backup.databases.length %> Veritabanı</span>
+                                     <% } %>
+                                 </div>
+                             </div>
+                             <div class="backup-actions-item">
+                                 <button class="btn btn-primary restore-btn" data-backup-id="<%= backup.id %>">
+                                     🔄 Geri Yükle
+                                 </button>
+                                 <button class="btn btn-danger delete-btn" data-backup-id="<%= backup.id %>">
+                                     🗑️ Sil
+                                 </button>
+                             </div>
+                         </div>
+                     <% }) %>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Log Viewer -->
+        <div id="logViewer" class="log-viewer"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Progress Modal -->
+    <div id="progressContainer" class="progress-container">
+        <div class="progress-modal">
+            <div class="progress-spinner"></div>
+            <h3 id="progressTitle">İşlem Yapılıyor...</h3>
+            <p id="progressMessage">Lütfen bekleyin</p>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let isOperationInProgress = false;
+
+        // Utility Functions
+        function showAlert(message, type = 'info') {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            alertContainer.appendChild(alertDiv);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 5000);
+        }
+
+        function showProgress(title, message) {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressTitle = document.getElementById('progressTitle');
+            const progressMessage = document.getElementById('progressMessage');
+            
+            progressTitle.textContent = title;
+            progressMessage.textContent = message;
+            progressContainer.style.display = 'flex';
+            
+            isOperationInProgress = true;
+            updateButtonStates();
+        }
+
+        function hideProgress() {
+            const progressContainer = document.getElementById('progressContainer');
+            progressContainer.style.display = 'none';
+            
+            isOperationInProgress = false;
+            updateButtonStates();
+        }
+
+        function updateButtonStates() {
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(btn => {
+                btn.disabled = isOperationInProgress;
+            });
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+                 // API Functions
+         async function createBackup() {
+             if (isOperationInProgress) return;
+             
+             try {
+                 const backupName = document.getElementById('backupNameInput').value.trim();
+                 showProgress('Backup Oluşturuluyor', `Dosyalar ve veritabanları yedekleniyor...${backupName ? ` (${backupName})` : ''}`);
+                 
+                 const response = await fetch('/admin/backup/api/create', {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json',
+                         'HX-Request': 'true'
+                     },
+                     body: JSON.stringify({ name: backupName || null })
+                 });
+
+                const result = await response.json();
+
+                                 if (result.success) {
+                     showAlert('Backup başarıyla oluşturuldu: ' + result.data.backupId, 'success');
+                     document.getElementById('backupNameInput').value = ''; // Clear input
+                     refreshBackupList();
+                 } else {
+                     showAlert('Backup oluşturulamadı: ' + result.message, 'error');
+                 }
+            } catch (error) {
+                showAlert('Backup işlemi sırasında hata oluştu: ' + error.message, 'error');
+            } finally {
+                hideProgress();
+            }
+        }
+
+        async function restoreBackup(backupId) {
+            if (isOperationInProgress) return;
+            
+            if (!confirm(`"${backupId}" backup'ından sistem geri yüklenecek.\n\nBu işlem mevcut tüm dosyaları ve veritabanlarını değiştirecek.\n\nDevam etmek istediğinizden emin misiniz?`)) {
+                return;
+            }
+
+            try {
+                showProgress('Geri Yükleniyor', 'Backup\'tan sistem geri yükleniyor...');
+                
+                const response = await fetch(`/admin/backup/api/restore/${backupId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'HX-Request': 'true'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('Sistem başarıyla geri yüklendi', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    showAlert('Geri yükleme başarısız: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Geri yükleme sırasında hata oluştu: ' + error.message, 'error');
+            } finally {
+                hideProgress();
+            }
+        }
+
+                 async function editBackupName(backupId, currentName) {
+             if (isOperationInProgress) return;
+             
+             const newName = prompt(`Backup adını düzenleyin:\n\nMevcut: ${currentName || 'İsimsiz'}\nYeni ad:`, currentName || '');
+             
+             if (newName === null || newName.trim() === currentName) {
+                 return; // Cancel or no change
+             }
+
+             try {
+                 const response = await fetch(`/admin/backup/api/rename/${backupId}`, {
+                     method: 'PATCH',
+                     headers: {
+                         'Content-Type': 'application/json',
+                         'HX-Request': 'true'
+                     },
+                     body: JSON.stringify({ name: newName.trim() })
+                 });
+
+                 const result = await response.json();
+
+                 if (result.success) {
+                     showAlert('Backup adı başarıyla güncellendi', 'success');
+                     refreshBackupList();
+                 } else {
+                     showAlert('Backup adı güncellenemedi: ' + result.message, 'error');
+                 }
+             } catch (error) {
+                 showAlert('Ad güncelleme sırasında hata oluştu: ' + error.message, 'error');
+             }
+         }
+
+         async function deleteBackup(backupId) {
+             if (isOperationInProgress) return;
+             
+             if (!confirm(`"${backupId}" backup'ı silinecek.\n\nBu işlem geri alınamaz.\n\nDevam etmek istediğinizden emin misiniz?`)) {
+                 return;
+             }
+
+             try {
+                 const response = await fetch(`/admin/backup/api/delete/${backupId}`, {
+                     method: 'DELETE',
+                     headers: {
+                         'Content-Type': 'application/json',
+                         'HX-Request': 'true'
+                     }
+                 });
+
+                 const result = await response.json();
+
+                 if (result.success) {
+                     showAlert('Backup başarıyla silindi', 'success');
+                     refreshBackupList();
+                 } else {
+                     showAlert('Backup silinemedi: ' + result.message, 'error');
+                 }
+             } catch (error) {
+                 showAlert('Silme işlemi sırasında hata oluştu: ' + error.message, 'error');
+             }
+         }
+
+        async function refreshBackupList() {
+            try {
+                const response = await fetch('/admin/backup/api/list');
+                const result = await response.json();
+
+                if (result.success) {
+                    updateBackupList(result.data);
+                } else {
+                    showAlert('Backup listesi yüklenemedi: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Liste yenileme sırasında hata oluştu: ' + error.message, 'error');
+            }
+        }
+
+        async function viewLogs() {
+            try {
+                const response = await fetch('/admin/backup/api/logs/backup?lines=50');
+                const result = await response.json();
+
+                if (result.success) {
+                    displayLogs(result.data.lines);
+                } else {
+                    showAlert('Loglar yüklenemedi: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Log görüntüleme sırasında hata oluştu: ' + error.message, 'error');
+            }
+        }
+
+        function updateBackupList(backups) {
+            const container = document.getElementById('backupListContainer');
+            
+            if (backups.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Henüz backup bulunmuyor</h3>
+                        <p>"Yedek Al" butonuna tıklayarak ilk backup'ınızı oluşturun</p>
+                    </div>
+                `;
+                return;
+            }
+
+                         container.innerHTML = backups.map(backup => `
+                 <div class="backup-item" data-backup-id="${backup.id}">
+                     <div class="backup-info">
+                         <h3>
+                             <span class="backup-name" data-backup-id="${backup.id}">
+                                 ${backup.name ? 
+                                     `${backup.name} <small style="color: #6b7280; font-weight: normal;">(${backup.id})</small>` : 
+                                     backup.id
+                                 }
+                             </span>
+                             <button class="btn-small btn-edit edit-name-btn" data-backup-id="${backup.id}" data-current-name="${backup.name || ''}" title="Adı düzenle">
+                                 ✏️
+                             </button>
+                         </h3>
+                         <div class="backup-details">
+                             <span>📅 ${new Date(backup.created).toLocaleString('tr-TR')}</span>
+                             <span class="backup-size">💾 ${formatFileSize(backup.size)}</span>
+                             ${backup.databases ? `<span>🗄️ ${backup.databases.length} Veritabanı</span>` : ''}
+                         </div>
+                     </div>
+                     <div class="backup-actions-item">
+                         <button class="btn btn-primary restore-btn" data-backup-id="${backup.id}">
+                             🔄 Geri Yükle
+                         </button>
+                         <button class="btn btn-danger delete-btn" data-backup-id="${backup.id}">
+                             🗑️ Sil
+                         </button>
+                     </div>
+                 </div>
+             `).join('');
+
+            // Re-attach event listeners
+            attachBackupItemListeners();
+        }
+
+        function displayLogs(logs) {
+            const logViewer = document.getElementById('logViewer');
+            
+            if (logs.length === 0) {
+                logViewer.innerHTML = '<div class="log-line">Henüz log kaydı bulunmuyor</div>';
+            } else {
+                logViewer.innerHTML = logs.map(log => 
+                    `<div class="log-line">${log}</div>`
+                ).join('');
+            }
+            
+            logViewer.style.display = 'block';
+            logViewer.scrollTop = logViewer.scrollHeight;
+        }
+
+                 function attachBackupItemListeners() {
+             // Restore buttons
+             document.querySelectorAll('.restore-btn').forEach(btn => {
+                 btn.addEventListener('click', (e) => {
+                     const backupId = e.target.getAttribute('data-backup-id');
+                     restoreBackup(backupId);
+                 });
+             });
+
+             // Delete buttons
+             document.querySelectorAll('.delete-btn').forEach(btn => {
+                 btn.addEventListener('click', (e) => {
+                     const backupId = e.target.getAttribute('data-backup-id');
+                     deleteBackup(backupId);
+                 });
+             });
+
+             // Edit name buttons
+             document.querySelectorAll('.edit-name-btn').forEach(btn => {
+                 btn.addEventListener('click', (e) => {
+                     const backupId = e.target.getAttribute('data-backup-id');
+                     const currentName = e.target.getAttribute('data-current-name');
+                     editBackupName(backupId, currentName);
+                 });
+             });
+         }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Main action buttons
+            document.getElementById('createBackupBtn').addEventListener('click', createBackup);
+            document.getElementById('viewLogsBtn').addEventListener('click', viewLogs);
+            document.getElementById('refreshListBtn').addEventListener('click', refreshBackupList);
+            document.getElementById('refreshBtn').addEventListener('click', () => location.reload());
+
+                         // Attach backup item listeners
+             attachBackupItemListeners();
+
+             // Enter key to create backup
+             document.getElementById('backupNameInput').addEventListener('keypress', (e) => {
+                 if (e.key === 'Enter') {
+                     createBackup();
+                 }
+             });
+
+             // Hide log viewer when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#viewLogsBtn') && !e.target.closest('#logViewer')) {
+                    const logViewer = document.getElementById('logViewer');
+                    if (logViewer.style.display === 'block') {
+                        logViewer.style.display = 'none';
+                    }
+                }
+            });
+
+            // Auto refresh every 30 seconds
+            setInterval(() => {
+                if (!isOperationInProgress) {
+                    refreshBackupList();
+                }
+            }, 30000);
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.8"></script>
+    <style>
+        .reports-container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #e5e7eb;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .stat-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-icon {
+            font-size: 2rem;
+            margin-right: 0.75rem;
+        }
+        
+        .stat-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+        
+        .stat-value {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-change {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #10b981;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #e5e7eb;
+        }
+        
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: between;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #111827;
+        }
+        
+        .chart-canvas {
+            position: relative;
+            height: 300px;
+        }
+        
+        .products-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .products-table th,
+        .products-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .products-table th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.875rem;
+        }
+        
+        .products-table td {
+            color: #6b7280;
+        }
+        
+        .product-name {
+            font-weight: 500;
+            color: #111827;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f4f6;
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 0.5rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #111827;
+            display: flex;
+            align-items: center;
+        }
+        
+        .back-link {
+            color: #6b7280;
+            text-decoration: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            transition: color 0.2s;
+        }
+        
+        .back-link:hover {
+            color: #3b82f6;
+        }
+        
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+            }
+            
+            .reports-container {
+                padding: 1rem;
+            }
+            
+            .stat-value {
+                font-size: 1.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="reports-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">
+                📊 Raporlama ve Analiz
+            </h1>
+            <a href="/<%= tenantDomain %>/dashboard" class="back-link">
+                ← Dashboard'a Dön
+            </a>
+        </div>
+
+        <!-- İstatistik Kartları -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <div class="stat-icon">💳</div>
+                    <div class="stat-title">Toplam Satış</div>
+                </div>
+                <div class="stat-value" id="totalSales">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        Yükleniyor...
+                    </div>
+                </div>
+                <div class="stat-change">Son 30 gün</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-title">Sipariş Sayısı</div>
+                </div>
+                <div class="stat-value" id="totalOrders">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        Yükleniyor...
+                    </div>
+                </div>
+                <div class="stat-change">Toplam sipariş</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-title">Aktif Müşteri</div>
+                </div>
+                <div class="stat-value" id="activeCustomers">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        Yükleniyor...
+                    </div>
+                </div>
+                <div class="stat-change">Son 30 günde aktif</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <div class="stat-icon">🎟️</div>
+                    <div class="stat-title">Kupon Kullanımı</div>
+                </div>
+                <div class="stat-value" id="couponUsage">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        Yükleniyor...
+                    </div>
+                </div>
+                <div class="stat-change">Son 30 günde</div>
+            </div>
+        </div>
+
+        <!-- Grafik Alanı -->
+        <div class="charts-grid">
+            <!-- Satış Trendi Grafiği -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">📈 Günlük Satış Trendi (Son 30 Gün)</h3>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+
+            <!-- En Çok Satılan Ürünler -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">🏆 En Çok Satılan Ürünler</h3>
+                </div>
+                <div id="topProductsContainer">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        Yükleniyor...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global değişkenler
+        let salesChart = null;
+        const tenantDomain = '<%= tenantDomain %>';
+        
+        // Para formatı
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('tr-TR', {
+                style: 'currency',
+                currency: 'TRY'
+            }).format(amount);
+        }
+        
+        // Sayı formatı
+        function formatNumber(num) {
+            return new Intl.NumberFormat('tr-TR').format(num);
+        }
+        
+        // Özet istatistikleri yükle
+        async function loadSummaryStats() {
+            try {
+                const response = await fetch(`/${tenantDomain}/reports/api/summary`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const stats = result.data;
+                    
+                    document.getElementById('totalSales').textContent = formatCurrency(stats.totalSales);
+                    document.getElementById('totalOrders').textContent = formatNumber(stats.totalOrders);
+                    document.getElementById('activeCustomers').textContent = formatNumber(stats.activeCustomers);
+                    document.getElementById('couponUsage').textContent = formatNumber(stats.couponUsage);
+                }
+            } catch (error) {
+                console.error('İstatistik yükleme hatası:', error);
+                document.querySelectorAll('.stat-value').forEach(el => {
+                    el.textContent = 'Hata';
+                });
+            }
+        }
+        
+        // Satış grafiğini yükle
+        async function loadSalesChart() {
+            try {
+                const response = await fetch(`/${tenantDomain}/reports/api/sales`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const salesData = result.data;
+                    const ctx = document.getElementById('salesChart').getContext('2d');
+                    
+                    if (salesChart) {
+                        salesChart.destroy();
+                    }
+                    
+                    salesChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: salesData.map(d => {
+                                const date = new Date(d.date);
+                                return date.toLocaleDateString('tr-TR', { 
+                                    day: '2-digit', 
+                                    month: '2-digit' 
+                                });
+                            }),
+                            datasets: [{
+                                label: 'Günlük Satış (TL)',
+                                data: salesData.map(d => d.total_sales),
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return formatCurrency(value);
+                                        }
+                                    }
+                                }
+                            },
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return 'Satış: ' + formatCurrency(context.parsed.y);
+                                        }
+                                    }
+                                },
+                                legend: {
+                                    display: false
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Satış grafiği yükleme hatası:', error);
+            }
+        }
+        
+        // En çok satılan ürünleri yükle
+        async function loadTopProducts() {
+            try {
+                const response = await fetch(`/${tenantDomain}/reports/api/top-products`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const products = result.data;
+                    const container = document.getElementById('topProductsContainer');
+                    
+                    if (products.length === 0) {
+                        container.innerHTML = '<div class="loading">Henüz ürün verisi yok</div>';
+                        return;
+                    }
+                    
+                    const tableHTML = `
+                        <table class="products-table">
+                            <thead>
+                                <tr>
+                                    <th>Ürün Adı</th>
+                                    <th>Miktar</th>
+                                    <th>Satış</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${products.map(product => `
+                                    <tr>
+                                        <td class="product-name">${product.product_name}</td>
+                                        <td>${formatNumber(product.total_quantity)}</td>
+                                        <td>${formatCurrency(product.total_sales)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    
+                    container.innerHTML = tableHTML;
+                }
+            } catch (error) {
+                console.error('Ürün listesi yükleme hatası:', error);
+                document.getElementById('topProductsContainer').innerHTML = 
+                    '<div class="loading">Veri yüklenemedi</div>';
+            }
+        }
+        
+        // Sayfa yüklendiğinde verileri çek
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSummaryStats();
+            loadSalesChart();
+            loadTopProducts();
+            
+            // 5 dakikada bir verileri güncelle
+            setInterval(() => {
+                loadSummaryStats();
+                loadSalesChart();
+                loadTopProducts();
+            }, 300000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= tenantName %> - Ürün Yönetimi</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+</head>
+<body class="tenant">
+    <div class="dashboard-layout">
+        <%- include('../partials/tenant-navigation', { activePage: 'products' }) %>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">📦 Ürün Yönetimi</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span class="total-count"><%= products.length %> Ürün</span>
+                        <%- include('../partials/components/button', {
+                            type: 'primary',
+                            text: 'Yeni Ürün',
+                            icon: '➕',
+                            action: 'open-add-product-modal',
+                            attributes: {}
+                        }) %>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Stats Cards -->
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-number"><%= products.length %></div>
+                        <div class="stat-label">Toplam Ürün</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-number"><%= products.filter(p => p.status === 'active').length %></div>
+                        <div class="stat-label">Aktif Ürün</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⚠️</div>
+                        <div class="stat-number"><%= products.filter(p => p.stock_quantity <= 5).length %></div>
+                        <div class="stat-label">Düşük Stok</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-number">₺<%= products.reduce((sum, p) => sum + (p.price * p.stock_quantity), 0).toLocaleString('tr-TR') %></div>
+                        <div class="stat-label">Toplam Stok Değeri</div>
+                    </div>
+                </div>
+
+                <!-- Products Table -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Ürün Listesi</h3>
+                    </div>
+                    <div class="card-content" style="padding: 0;">
+                        <div class="table-container" style="overflow-x: auto;">
+                            <table id="productsTable" style="width: 100%; min-width: 800px;">
+                                <thead style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                    <tr>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">ID</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Ürün Adı</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Fiyat</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Stok</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Durum</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Oluşturma Tarihi</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="products-table-body">
+                                    <% products.forEach(product => { %>
+                                        <tr class="table-row" style="border-bottom: 1px solid #e5e7eb; transition: all 0.3s ease;">
+                                            <td style="padding: 1rem; font-weight: 500;"><%= product.id %></td>
+                                            <td style="padding: 1rem;">
+                                                <strong><%= product.name %></strong>
+                                                <% if(product.description) { %>
+                                                    <div style="color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem;">
+                                                        <%= product.description.substring(0, 50) %><%= product.description.length > 50 ? '...' : '' %>
+                                                    </div>
+                                                <% } %>
+                                            </td>
+                                            <td style="padding: 1rem; font-weight: 600;">₺<%= parseFloat(product.price).toLocaleString('tr-TR') %></td>
+                                            <td style="padding: 1rem; <%= product.stock_quantity <= 5 ? 'color: #dc2626; font-weight: 600;' : 'color: #6b7280;' %>">
+                                                <%= product.stock_quantity %>
+                                                <% if(product.stock_quantity <= 5) { %>
+                                                    <span style="font-size: 0.75rem; margin-left: 0.5rem;">⚠️</span>
+                                                <% } %>
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                <%- include('../partials/components/status-badge', {
+                                                    status: product.status,
+                                                    text: product.status === 'active' ? 'Aktif' : 'Pasif'
+                                                }) %>
+                                            </td>
+                                            <td style="padding: 1rem; color: #6b7280;"><%= new Date(product.created_at).toLocaleDateString('tr-TR') %></td>
+                                            <td style="padding: 1rem;">
+                                                <div style="display: flex; gap: 0.5rem;">
+                                                    <%- include('../partials/components/button', {
+                                                        type: 'outline',
+                                                        text: 'Düzenle',
+                                                        icon: '✏️',
+                                                        size: 'sm',
+                                                        action: 'edit-product',
+                                                        attributes: { 'data-product-id': product.id }
+                                                    }) %>
+                                                    <%- include('../partials/components/button', {
+                                                        type: 'danger',
+                                                        text: 'Sil',
+                                                        icon: '🗑️',
+                                                        size: 'sm',
+                                                        action: 'delete-product',
+                                                        attributes: { 'data-product-id': product.id }
+                                                    }) %>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <% if(products.length === 0) { %>
+                    <div class="empty-state">
+                        <div class="empty-icon">📦</div>
+                        <h3>Henüz ürün bulunmuyor</h3>
+                        <p>İlk ürününüzü eklemek için "Yeni Ürün" butonuna tıklayın.</p>
+                        <%- include('../partials/components/button', {
+                            type: 'primary',
+                            text: 'İlk Ürünü Ekle',
+                            icon: '➕',
+                            action: 'open-add-product-modal'
+                        }) %>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div class="modal" id="addProductModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Yeni Ürün Ekle</h3>
+                <button class="modal-close" data-action="close-add-product-modal">✕</button>
+            </div>
+            <form id="addProductForm">
+                <div class="modal-body">
+                    <%- include('../partials/components/form-group', {
+                        id: 'product_name',
+                        name: 'name',
+                        label: 'Ürün Adı',
+                        type: 'text',
+                        required: true,
+                        placeholder: 'Örn: MacBook Pro 14'
+                    }) %>
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'product_description',
+                        name: 'description',
+                        label: 'Açıklama',
+                        type: 'textarea',
+                        placeholder: 'Ürün açıklaması...',
+                        rows: 3
+                    }) %>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <%- include('../partials/components/form-group', {
+                            id: 'product_price',
+                            name: 'price',
+                            label: 'Fiyat (₺)',
+                            type: 'number',
+                            required: true,
+                            step: '0.01',
+                            min: '0',
+                            placeholder: '0.00'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'product_stock',
+                            name: 'stock_quantity',
+                            label: 'Stok Miktarı',
+                            type: 'number',
+                            min: '0',
+                            placeholder: '0'
+                        }) %>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <%
+                        const brandOptions = [
+                            { value: '', text: 'Marka Seçin' }
+                        ];
+                        brands.forEach(brand => {
+                            brandOptions.push({ value: brand.id, text: brand.name });
+                        });
+                        %>
+                        <%- include('../partials/components/form-group', {
+                            id: 'product_brand',
+                            name: 'brand_id',
+                            label: 'Marka',
+                            type: 'select',
+                            options: brandOptions,
+                            placeholder: 'Marka seçin (opsiyonel)'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'product_status',
+                            name: 'status',
+                            label: 'Durum',
+                            type: 'select',
+                            options: [
+                                { value: 'active', text: 'Aktif' },
+                                { value: 'inactive', text: 'Pasif' }
+                            ],
+                            defaultValue: 'active'
+                        }) %>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <%- include('../partials/components/button', {
+                        type: 'secondary',
+                        text: 'İptal',
+                        action: 'close-add-product-modal'
+                    }) %>
+                    <%- include('../partials/components/button', {
+                        type: 'primary',
+                        text: 'Ürün Ekle',
+                        submit: true
+                    }) %>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Product Modal -->
+    <div class="modal" id="editProductModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Ürün Düzenle</h3>
+                <button class="modal-close" data-action="close-edit-product-modal">✕</button>
+            </div>
+            <form id="editProductForm">
+                <div class="modal-body">
+                    <input type="hidden" id="edit_product_id" name="id">
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'edit_product_name',
+                        name: 'name',
+                        label: 'Ürün Adı',
+                        type: 'text',
+                        required: true,
+                        placeholder: 'Örn: MacBook Pro 14'
+                    }) %>
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'edit_product_description',
+                        name: 'description',
+                        label: 'Açıklama',
+                        type: 'textarea',
+                        placeholder: 'Ürün açıklaması...',
+                        rows: 3
+                    }) %>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_product_price',
+                            name: 'price',
+                            label: 'Fiyat (₺)',
+                            type: 'number',
+                            required: true,
+                            step: '0.01',
+                            min: '0',
+                            placeholder: '0.00'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_product_stock',
+                            name: 'stock_quantity',
+                            label: 'Stok Miktarı',
+                            type: 'number',
+                            min: '0',
+                            placeholder: '0'
+                        }) %>
+                    </div>
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'edit_product_status',
+                        name: 'status',
+                        label: 'Durum',
+                        type: 'select',
+                        options: [
+                            { value: 'active', text: 'Aktif' },
+                            { value: 'inactive', text: 'Pasif' }
+                        ]
+                    }) %>
+                </div>
+                <div class="modal-footer">
+                    <%- include('../partials/components/button', {
+                        type: 'secondary',
+                        text: 'İptal',
+                        action: 'close-edit-product-modal'
+                    }) %>
+                    <%- include('../partials/components/button', {
+                        type: 'primary',
+                        text: 'Güncelle',
+                        submit: true
+                    }) %>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/ui.js"></script>
+    <script src="/js/dashboard.js"></script>
+    <script>
+        // Initialize product management when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof window.initializeProductManagement === 'function') {
+                window.initializeProductManagement('<%= tenantDomain %>');
+            }
+        });
+    </script>
+</body>
+</html> 

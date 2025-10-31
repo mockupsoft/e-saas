@@ -1,0 +1,73 @@
+<%# Example: Tenant Modal using Component System %>
+
+<%- include('./components/modal', {
+    id: 'addTenantModal',
+    title: 'Yeni Tenant Oluştur',
+    size: 'md',
+    form: {
+        hxPost: '/admin/api/tenants',
+        hxTarget: '#tenant-table-body',
+        hxSwap: 'outerHTML'
+    },
+    content: `
+        ${include('./components/form-group', {
+            type: 'text',
+            name: 'name',
+            label: 'Tenant Adı',
+            placeholder: 'Örn: Acme Store',
+            required: true
+        })}
+        
+        ${include('./components/form-group', {
+            type: 'text',
+            name: 'domain',
+            label: 'Domain',
+            placeholder: 'Örn: acme',
+            required: true,
+            help: 'Sadece küçük harf ve rakam kullanın. Örnek: acme → saas.apollo12.co/acme',
+            attributes: {
+                pattern: '[a-z0-9]+',
+                title: 'Sadece küçük harf ve rakam kullanın'
+            }
+        })}
+        
+        ${include('./components/form-group', {
+            type: 'text',
+            name: 'db_name',
+            label: 'Veritabanı Adı',
+            placeholder: 'Örn: saas_acme',
+            required: true,
+            help: 'Harf ile başlamalı, sadece harf, rakam ve alt çizgi kullanın.',
+            attributes: {
+                pattern: '[a-zA-Z][a-zA-Z0-9_]*',
+                title: 'Harf ile başlamalı, sadece harf, rakam ve alt çizgi'
+            }
+        })}
+        
+        ${include('./components/form-group', {
+            type: 'select',
+            name: 'status',
+            label: 'Durum',
+            value: 'active',
+            options: [
+                { value: 'active', text: 'Aktif' },
+                { value: 'inactive', text: 'Pasif' },
+                { value: 'suspended', text: 'Askıda' }
+            ]
+        })}
+    `,
+    buttons: [
+        {
+            text: 'İptal',
+            type: 'button',
+            class: 'btn-outline',
+            action: 'close-modal',
+            modal: 'addTenantModal'
+        },
+        {
+            text: 'Tenant Oluştur',
+            type: 'submit',
+            class: 'btn-primary'
+        }
+    ]
+}) %> 

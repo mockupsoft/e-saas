@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= tenantName %> - Marka Yönetimi</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+    
+    <style>
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+        .action-btn {
+            padding: 0.25rem 0.5rem !important;
+            min-width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .modal-container {
+            position: relative;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            z-index: 1001;
+            margin: 1rem;
+        }
+        .modal-header {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+        .modal-close:hover {
+            opacity: 1;
+        }
+        .modal-body {
+            padding: 1rem;
+        }
+        .modal-footer {
+            padding: 1rem;
+            border-top: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+        .form-grid {
+            display: grid;
+            gap: 1rem;
+        }
+        .btn-icon {
+            margin-right: 0.25rem;
+        }
+        .brand-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .brand-logo {
+            width: 30px;
+            height: 30px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .brand-icon {
+            font-size: 1.25rem;
+        }
+        .brand-name {
+            font-weight: 500;
+        }
+        .text-center {
+            text-align: center;
+        }
+        /* Table Styles */
+        .data-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+        .column-id {
+            width: 80px;
+        }
+        .column-brand {
+            width: 25%;
+        }
+        .column-description {
+            width: auto;
+        }
+        .column-status {
+            width: 120px;
+        }
+        .column-date {
+            width: 140px;
+        }
+        .column-actions {
+            width: 160px;
+        }
+        .data-table th,
+        .data-table td {
+            padding: 0.75rem;
+            vertical-align: middle;
+        }
+        @media (max-width: 768px) {
+            .action-buttons {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            .action-btn {
+                width: 100%;
+            }
+            .modal-container {
+                margin: 0.5rem;
+            }
+        }
+    </style>
+    
+    <!-- Extension hatalarını gizle ve UI.js'i bekle -->
+    <script>
+        // Hata filtreleme için kontrol fonksiyonu
+        function shouldIgnoreError(message) {
+            const ignorePatterns = [
+                'MetaMask',
+                'inpage.js',
+                'chrome-extension',
+                'Unknown action:',
+                'auth.js',
+                'Maximum call stack size exceeded',
+                'UIManager',
+                'Failed to connect'
+            ];
+            return ignorePatterns.some(pattern => 
+                typeof message === 'string' && message.includes(pattern)
+            );
+        }
+
+        // Console error'ları filtrele
+        const originalError = console.error;
+        console.error = function(...args) {
+            const message = args.join(' ');
+            if (!shouldIgnoreError(message)) {
+                originalError.apply(console, args);
+            }
+        };
+        
+        // Promise rejection hatalarını filtrele
+        window.addEventListener('unhandledrejection', function(event) {
+            if (event.reason && shouldIgnoreError(event.reason.message)) {
+                event.preventDefault();
+            }
+        });
+
+        // Console warn'ları filtrele
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            const message = args.join(' ');
+            if (!shouldIgnoreError(message)) {
+                originalWarn.apply(console, args);
+            }
+        };
+
+        // UI.js yüklenene kadar bekle
+        function waitForUIManager(callback, maxAttempts = 20) {
+            let attempts = 0;
+            const interval = setInterval(() => {
+                attempts++;
+                if (window.UIManager && window.UIManager.getInstance()) {
+                    clearInterval(interval);
+                    callback();
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    console.warn('UIManager yüklenemedi, sayfa yenileniyor...');
+                    setTimeout(() => location.reload(), 1000);
+                }
+            }, 200);
+        }
+    </script>
+</head>
+<body class="tenant">
+    <div class="dashboard-layout">
+        <%- include('../partials/tenant-navigation', { activePage: 'brands' }) %>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">🏷️ Marka Yönetimi</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span class="total-count"><%= (brands && brands.length) || 0 %> Marka</span>
+                        <%- include('../partials/components/button', {
+                            type: 'button',
+                            variant: 'primary',
+                            text: 'Yeni Marka',
+                            icon: '➕',
+                            action: 'open-add-brand-modal',
+                            attributes: {}
+                        }) %>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content-wrapper">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">🏷️</div>
+                        <div class="stat-info">
+                            <div class="stat-number"><%= (stats && stats.total) || 0 %></div>
+                            <div class="stat-label">Toplam Marka</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-info">
+                            <div class="stat-number"><%= (stats && stats.active) || 0 %></div>
+                            <div class="stat-label">Aktif Marka</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏸️</div>
+                        <div class="stat-info">
+                            <div class="stat-number"><%= (stats && stats.inactive) || 0 %></div>
+                            <div class="stat-label">Pasif Marka</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Brands Table -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                            <h2 style="margin: 0;">📋 Marka Listesi</h2>
+                            <div class="table-filters" style="min-width: 250px;">
+                                <input type="text" id="brand-search" placeholder="Marka ara..." 
+                                    style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            </div>
+                        </div>
+                    </div>
+
+                                    <div class="table-wrapper">
+                    <div class="table-container" style="min-width: 100%; overflow-x: auto;">
+                        <div id="brands-table-container">
+                            <table class="data-table" id="brands-table">
+                                <thead>
+                                    <tr>
+                                        <th class="column-id">ID</th>
+                                        <th class="column-brand">Marka</th>
+                                        <th class="column-description">Açıklama</th>
+                                        <th class="column-status">Durum</th>
+                                        <th class="column-date">Oluşturma</th>
+                                        <th class="column-actions">İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (brands && brands.length > 0) { %>
+                                        <% brands.forEach(brand => { %>
+                                            <tr>
+                                                <td class="text-center"><%= brand.id %></td>
+                                                <td>
+                                                    <div class="brand-info">
+                                                        <% if (brand.logo) { %>
+                                                            <img src="<%= brand.logo %>" alt="<%= brand.name %>" class="brand-logo">
+                                                        <% } else { %>
+                                                            <span class="brand-icon">📦</span>
+                                                        <% } %>
+                                                        <span class="brand-name"><%= brand.name %></span>
+                                                    </div>
+                                                </td>
+                                                <td><%= brand.description || '-' %></td>
+                                                <td class="text-center">
+                                                    <span class="badge <%= brand.status === 'active' ? 'badge-success' : 'badge-secondary' %>">
+                                                        <%= brand.status === 'active' ? 'Aktif' : 'Pasif' %>
+                                                    </span>
+                                                </td>
+                                                <td class="text-center"><%= new Date(brand.created_at).toLocaleDateString('tr-TR') %></td>
+                                                <td>
+                                                    <div class="action-buttons">
+                                                        <%- include('../partials/components/button', {
+                                                            type: 'outline',
+                                                            text: '',
+                                                            icon: '✏️',
+                                                            action: 'edit-brand',
+                                                            attributes: {
+                                                                'data-id': brand.id,
+                                                                'class': 'btn-sm action-btn',
+                                                                'title': 'Düzenle'
+                                                            }
+                                                        }) %>
+                                                        <button class="btn btn-danger btn-sm action-btn" 
+                                                                onclick="deleteBrand(<%= brand.id %>)"
+                                                                title="Sil">
+                                                            <span class="btn-icon">🗑️</span>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <% }); %>
+                                                                        <% } else { %>
+                                        <tr>
+                                            <td colspan="6" class="text-center">Henüz marka eklenmemiş</td>
+                                        </tr>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- End Table Container -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Brand Modal -->
+    <div class="modal" id="add-brand-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>Yeni Marka Ekle</h3>
+                <button class="modal-close" data-action="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-brand-form" 
+                      hx-post="api/brands" 
+                      hx-target="#brands-table-container" 
+                      hx-swap="innerHTML"
+                      hx-on::after-request="if(event.detail.successful) { 
+                          document.getElementById('add-brand-modal').style.display = 'none';
+                          document.body.style.overflow = '';
+                          this.reset();
+                          window.showToast('Marka başarıyla eklendi!', 'success');
+                          setTimeout(() => location.reload(), 1000);
+                      }"
+                      enctype="multipart/form-data">
+                    <div class="form-grid">
+                        <%- include('../partials/components/form-group', {
+                            id: 'brand_name',
+                            name: 'name',
+                            label: 'Marka Adı',
+                            type: 'text',
+                            required: true,
+                            placeholder: 'Marka adını girin'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'brand_description',
+                            name: 'description',
+                            label: 'Açıklama',
+                            type: 'textarea',
+                            placeholder: 'Marka açıklaması (opsiyonel)'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'brand_logo',
+                            name: 'logo',
+                            label: 'Logo',
+                            type: 'file',
+                            attributes: { accept: '.jpg,.jpeg,.png' }
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'brand_status',
+                            name: 'status',
+                            label: 'Durum',
+                            type: 'select',
+                            options: [
+                                { value: 'active', text: 'Aktif' },
+                                { value: 'inactive', text: 'Pasif' }
+                            ],
+                            value: 'active'
+                        }) %>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-action="close-modal">İptal</button>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-icon">💾</span>
+                            Marka Ekle
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Brand Modal -->
+    <div class="modal" id="edit-brand-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>Marka Düzenle</h3>
+                <button class="modal-close" data-action="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-brand-form" enctype="multipart/form-data">
+                    <input type="hidden" id="edit_brand_id" name="id">
+                    <div class="form-grid">
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_brand_name',
+                            name: 'name',
+                            label: 'Marka Adı',
+                            type: 'text',
+                            required: true,
+                            placeholder: 'Marka adını girin'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_brand_description',
+                            name: 'description',
+                            label: 'Açıklama',
+                            type: 'textarea',
+                            placeholder: 'Marka açıklaması (opsiyonel)'
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_brand_logo',
+                            name: 'logo',
+                            label: 'Logo (değiştirmek için seçin)',
+                            type: 'file',
+                            attributes: { accept: '.jpg,.jpeg,.png' }
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_brand_status',
+                            name: 'status',
+                            label: 'Durum',
+                            type: 'select',
+                            options: [
+                                { value: 'active', text: 'Aktif' },
+                                { value: 'inactive', text: 'Pasif' }
+                            ]
+                        }) %>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-action="close-modal">İptal</button>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-icon">💾</span>
+                            Güncelle
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/ui.js"></script>
+    <script src="/js/dashboard.js"></script>
+    <script>
+        // Initialize UI Manager
+        let uiManager = null;
+        
+        function initializeUI() {
+            if (window.UIManager) {
+                uiManager = window.UIManager.getInstance();
+                if (uiManager) {
+                    uiManager.init();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Try to initialize immediately
+        if (!initializeUI()) {
+            // If failed, wait for script to load
+            window.addEventListener('load', function() {
+                if (!initializeUI()) {
+                    console.warn('UIManager initialization failed');
+                }
+            });
+        }
+        // Toast notification function
+        function showToast(message, type = 'info', duration = 3000) {
+            const UIManager = window.UIManager;
+            if (UIManager && UIManager.showToast) {
+                UIManager.showToast(message, type, duration);
+            } else {
+                console.log(`Toast: ${message} (${type})`);
+            }
+        }
+
+
+
+        // Brand Management Functions
+        document.addEventListener('DOMContentLoaded', function() {
+            // Setup brand modal listeners
+            setupBrandModals();
+            
+            // Add global event delegation for dynamic buttons
+            document.addEventListener('click', function(e) {
+                if (e.target.hasAttribute('data-action')) {
+                    const action = e.target.getAttribute('data-action');
+                    const brandId = e.target.getAttribute('data-id');
+                    
+                    switch(action) {
+                        case 'edit-brand':
+                            e.preventDefault();
+                            editBrand(brandId);
+                            break;
+                        case 'open-add-brand-modal':
+                            e.preventDefault();
+                            document.getElementById('add-brand-modal').style.display = 'flex';
+                            document.body.style.overflow = 'hidden';
+                            break;
+                    }
+                }
+            });
+        });
+
+        // Setup Modal Functions
+        function setupBrandModals() {
+            // Add Brand Modal Event Listeners
+            const addBrandButton = document.querySelector('[data-action="open-add-brand-modal"]');
+            const addBrandModal = document.getElementById('add-brand-modal');
+            const closeAddBrandButtons = document.querySelectorAll('[data-action="close-modal"]');
+            
+            // Edit Brand Modal Event Listeners
+            const editBrandModal = document.getElementById('edit-brand-modal');
+            const closeEditBrandButtons = document.querySelectorAll('[data-action="close-modal"]');
+            
+            if (addBrandButton) {
+                addBrandButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    addBrandModal.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                });
+            }
+            
+            closeAddBrandButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    addBrandModal.style.display = 'none';
+                    document.body.style.overflow = '';
+                    document.getElementById('add-brand-form').reset();
+                });
+            });
+            
+            closeEditBrandButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    editBrandModal.style.display = 'none';
+                    document.body.style.overflow = '';
+                    document.getElementById('edit-brand-form').reset();
+                });
+            });
+            
+            // Close modal on overlay click
+            addBrandModal.addEventListener('click', function(e) {
+                if (e.target === addBrandModal) {
+                    addBrandModal.style.display = 'none';
+                    document.body.style.overflow = '';
+                    document.getElementById('add-brand-form').reset();
+                }
+            });
+            
+            editBrandModal.addEventListener('click', function(e) {
+                if (e.target === editBrandModal) {
+                    editBrandModal.style.display = 'none';
+                    document.body.style.overflow = '';
+                    document.getElementById('edit-brand-form').reset();
+                }
+            });
+        }
+
+        // Edit Brand Function
+        async function editBrand(brandId) {
+            try {
+                if (!brandId) throw new Error('Brand ID is required');
+
+                const response = await fetch(`api/brands/${brandId}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message || 'Marka bilgileri getirilemedi');
+
+                const brand = data.data;
+                
+                // Fill form fields
+                const fields = {
+                    'edit_brand_id': brand.id,
+                    'edit_brand_name': brand.name,
+                    'edit_brand_description': brand.description || '',
+                    'edit_brand_status': brand.status
+                };
+
+                // Update each field if it exists
+                Object.entries(fields).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) element.value = value;
+                });
+
+                // Show modal
+                const modal = document.getElementById('edit-brand-modal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                }
+            } catch (error) {
+                console.error('Edit Error:', error);
+                showToast(error.message || 'Marka bilgileri getirilirken bir hata oluştu', 'error');
+            }
+        }
+
+        // Delete Brand Function
+        async function deleteBrand(brandId) {
+            try {
+                if (!confirm('Bu markayı silmek istediğinizden emin misiniz?')) {
+                    return;
+                }
+
+                const response = await fetch(`api/brands/${brandId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.message || 'Silme işlemi başarısız');
+                }
+
+                showToast('Marka başarıyla silindi', 'success');
+
+                // Refresh the table
+                const tableContainer = document.querySelector('#brands-table-body');
+                if (tableContainer) {
+                    await htmx.ajax('GET', window.location.href, {
+                        target: '#brands-table-body',
+                        swap: 'innerHTML'
+                    });
+                }
+            } catch (error) {
+                console.error('Delete Error:', error);
+                showToast(error.message || 'Silme işlemi sırasında bir hata oluştu', 'error');
+            }
+        }
+
+        // Edit Brand Form Submit
+        const editForm = document.getElementById('edit-brand-form');
+        if (editForm) {
+            editForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const brandId = document.getElementById('edit_brand_id').value;
+                
+                if (!brandId) {
+                    showToast('Marka ID bulunamadı', 'error');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`api/brands/${brandId}`, {
+                        method: 'PUT',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+
+                    const data = await response.json();
+                    if (!data.success) {
+                        throw new Error(data.message || 'Güncelleme işlemi başarısız');
+                    }
+
+                    showToast('Marka başarıyla güncellendi', 'success');
+                    document.getElementById('edit-brand-modal').style.display = 'none';
+                    document.body.style.overflow = '';
+
+                    // Refresh the table
+                    const tableContainer = document.querySelector('#brands-table-container');
+                    if (tableContainer) {
+                        await htmx.ajax('GET', window.location.href, {
+                            target: '#brands-table-container',
+                            swap: 'innerHTML',
+                            headers: {
+                                'HX-Request': 'true'
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Update Error:', error);
+                    showToast(error.message || 'Güncelleme sırasında bir hata oluştu', 'error');
+                }
+            });
+        }
+
+        // Search functionality
+        document.getElementById('brand-search').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#brands-table-body tr');
+            
+            rows.forEach(row => {
+                const brandName = row.cells[1].textContent.toLowerCase();
+                const brandDesc = row.cells[2].textContent.toLowerCase();
+                
+                if (brandName.includes(searchTerm) || brandDesc.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+
+        // HTMX success handler
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            if (evt.detail.target.id === 'brands-table-container') {
+                // Show success message
+                showToast('İşlem başarıyla tamamlandı', 'success');
+                
+                // Close modal and reset form if exists
+                const modal = document.querySelector('.modal[style*="flex"]');
+                if (modal) {
+                    modal.style.display = 'none';
+                    document.body.style.overflow = '';
+                    const form = modal.querySelector('form');
+                    if (form) form.reset();
+                }
+                
+                // Scroll to top of table
+                const tableWrapper = document.querySelector('.table-wrapper');
+                if (tableWrapper) {
+                    tableWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        });
+    </script>
+</body>
+</html> 
+</html> 

@@ -1,0 +1,1715 @@
+# 🏢 SaaS E-Ticaret Platformu - Cursor AI Kuralları
+
+Bu dosya, Cursor AI'ın projeyi doğru anlayıp geliştirmesi için gerekli tüm kuralları içerir.
+
+## 📋 Proje Genel Bilgileri
+
+### 🎯 Proje Türü
+- **Multi-Tenant SaaS E-Ticaret Platformu**
+- **Ana Domain:** `saas.apollo12.co`
+- **Tenant Routing:** Directory-based (`/tenant-name/`)
+- **Admin Panel:** `/admin/` rotası
+- **Çalışma Dizini:** `/www/wwwroot/saas-panel`
+
+### 🔧 Teknoloji Stack (ZORUNLU KULLANIM)
+
+#### Backend
+- **Runtime:** Node.js
+- **Framework:** Express.js
+- **Database:** MySQL/MariaDB (Multi-tenant databases)
+- **Template Engine:** EJS (SADECE EJS kullan, React/Vue/Angular YASAK)
+- **Session:** express-session + cookie-parser
+- **Security:** Helmet.js + CORS + CSP
+
+#### Frontend
+- **Template:** EJS Templates (views/ klasöründe)
+- **JavaScript:** Vanilla JavaScript + HTMX (Framework kullanma)
+- **Styling:** Pure CSS3 (Tailwind/Bootstrap YASAK)
+- **Icons:** Font Awesome + Emoji
+- **AJAX:** HTMX (fetch/axios yerine HTMX kullan)
+
+#### Database
+- **Ana DB:** `saas` (tenant bilgileri)
+- **Tenant DBs:** `saas_tenantname` (her tenant için ayrı)
+- **ORM:** Raw MySQL2 queries (Sequelize/Prisma YASAK)
+
+## 🏗️ Proje Yapısı (KESINLIKLE UYULACAK)
+
+```
+/www/wwwroot/saas-panel/
+├── index.js                 # Ana server dosyası
+├── package.json            # Dependencies
+├── .env                    # Environment variables
+├── src/
+│   ├── config/
+│   │   └── swagger.js      # API documentation
+│   ├── controllers/        # Business logic
+│   ├── middleware/         # Custom middleware
+│   │   ├── tenantRouter.js # Tenant routing
+│   │   └── adminAuth.js    # Admin authentication
+│   ├── models/             # Database models
+│   ├── routes/             # Route definitions
+│   │   ├── admin.js        # Admin routes
+│   │   └── tenant.js       # Tenant routes
+│   ├── utils/              # Utility functions
+│   │   └── db.js          # Database connections
+│   └── migrations/         # Database migrations
+├── views/                  # EJS Templates
+│   ├── admin/             # Admin panel views
+│   ├── tenant/            # Tenant views
+│   ├── partials/          # Reusable components
+│   │   ├── components/    # UI components
+│   │   └── tenant-navigation.ejs
+│   └── errors/            # Error pages
+├── public/                # Static assets
+│   ├── css/
+│   │   ├── dashboard.css  # Main styles
+│   │   └── components.css # Component styles
+│   ├── js/
+│   │   ├── dashboard.js   # Main JavaScript
+│   │   └── ui.js         # UI interactions
+│   └── images/           # Static images
+├── backups/              # System backups
+├── uploads/              # User uploads
+└── storage/              # Application storage
+```
+
+## 🎨 UI Component Sistemi (ZORUNLU KULLANIM)
+
+### 📦 Reusable Components (views/partials/components/)
+
+#### 1. Modal Component
+```ejs
+<%- include('partials/components/modal', {
+    id: 'myModal',
+    title: 'Modal Başlığı',
+    size: 'md', // sm, md, lg
+    form: {
+        hxPost: '/api/endpoint',
+        hxTarget: '#result'
+    },
+    content: '<p>Modal içeriği</p>',
+    buttons: [
+        { text: 'İptal', class: 'btn-outline', action: 'close-modal' },
+        { text: 'Kaydet', type: 'submit', class: 'btn-primary' }
+    ]
+}) %>
+```
+
+#### 2. Table Component
+```ejs
+<%- include('partials/components/table', {
+    id: 'dataTable',
+    headers: [
+        { text: 'Ad', key: 'name', sortable: true },
+        { text: 'Email', key: 'email' },
+        { text: 'Durum', key: 'status', render: (status) => `<span class="status-${status}">${status}</span>` }
+    ],
+    rows: data,
+    actions: [
+        { icon: '✏️', text: 'Düzenle', action: 'edit-item', class: 'btn-outline' },
+        { icon: '🗑️', text: 'Sil', action: 'delete-item', class: 'btn-danger' }
+    ],
+    emptyMessage: 'Veri bulunamadı'
+}) %>
+```
+
+#### 3. Form Group Component
+```ejs
+<%- include('partials/components/form-group', {
+    type: 'text',
+    name: 'name',
+    label: 'Ad Soyad',
+    value: item.name || '',
+    required: true,
+    placeholder: 'Adınızı girin'
+}) %>
+```
+
+### 🎨 CSS Sınıf Sistemi
+
+#### Layout Classes
+- `.dashboard-layout` - Ana layout container
+- `.sidebar` - Kenar menü
+- `.main-content` - Ana içerik alanı
+- `.content` - İçerik wrapper
+
+#### Component Classes
+- `.btn`, `.btn-primary`, `.btn-outline`, `.btn-danger` - Butonlar
+- `.form-group`, `.form-label`, `.form-input` - Form elemanları
+- `.modal`, `.modal-content`, `.modal-header` - Modal yapısı
+- `.data-table`, `.table-container` - Tablo yapısı
+- `.status-badge`, `.status-active`, `.status-inactive` - Durum göstergeleri
+
+#### Responsive Classes
+- `.hidden-mobile` - Mobilde gizle
+- `.mobile-only` - Sadece mobilde göster
+- Grid sistemleri otomatik responsive
+
+## 🔄 CRUD İşlem Standartları (ZORUNLU)
+
+### 📡 API Response Formatı
+```javascript
+// ✅ DOĞRU - Tüm API responses bu formatı kullanmalı
+{
+    "success": true,
+    "data": { /* veri */ },
+    "message": "İşlem başarılı",
+    "timestamp": "2025-01-01T00:00:00.000Z"
+}
+
+// ❌ YANLIŞ - Bu format kullanılmamalı
+{
+    "status": "ok",
+    "result": { /* veri */ }
+}
+```
+
+### 🛠️ CRUD Pattern'leri
+
+#### 1. Controller Pattern
+```javascript
+// src/controllers/ExampleController.js
+class ExampleController {
+    // GET /api/items - Liste
+    static async getAll(req, res) {
+        try {
+            const { tenantDb } = req;
+            const items = await executeTenantQuery(tenantDb, 'SELECT * FROM items WHERE status = ?', ['active']);
+            
+            res.json({
+                success: true,
+                data: items,
+                message: 'Veriler başarıyla getirildi',
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: 'Veri getirme hatası',
+                error: error.message,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
+
+    // POST /api/items - Yeni kayıt
+    static async create(req, res) {
+        try {
+            const { tenantDb } = req;
+            const { name, description } = req.body;
+            
+            // Validation
+            if (!name) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Ad alanı zorunludur',
+                    timestamp: new Date().toISOString()
+                });
+            }
+            
+            const result = await executeTenantQuery(tenantDb, 
+                'INSERT INTO items (name, description, created_at) VALUES (?, ?, NOW())',
+                [name, description]
+            );
+            
+            res.status(201).json({
+                success: true,
+                data: { id: result.insertId, name, description },
+                message: 'Kayıt başarıyla oluşturuldu',
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: 'Kayıt oluşturma hatası',
+                error: error.message,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
+
+    // PUT /api/items/:id - Güncelleme
+    static async update(req, res) {
+        try {
+            const { tenantDb } = req;
+            const { id } = req.params;
+            const { name, description } = req.body;
+            
+            await executeTenantQuery(tenantDb,
+                'UPDATE items SET name = ?, description = ?, updated_at = NOW() WHERE id = ?',
+                [name, description, id]
+            );
+            
+            res.json({
+                success: true,
+                data: { id, name, description },
+                message: 'Kayıt başarıyla güncellendi',
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: 'Güncelleme hatası',
+                error: error.message,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
+
+    // DELETE /api/items/:id - Soft delete
+    static async delete(req, res) {
+        try {
+            const { tenantDb } = req;
+            const { id } = req.params;
+            
+            // Soft delete (status = 'inactive')
+            await executeTenantQuery(tenantDb,
+                'UPDATE items SET status = ?, updated_at = NOW() WHERE id = ?',
+                ['inactive', id]
+            );
+            
+            res.json({
+                success: true,
+                message: 'Kayıt başarıyla silindi',
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: 'Silme hatası',
+                error: error.message,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
+}
+```
+
+#### 2. Route Pattern
+```javascript
+// src/routes/tenant.js
+const express = require('express');
+const ExampleController = require('../controllers/ExampleController');
+const router = express.Router();
+
+// CRUD routes
+router.get('/api/items', ExampleController.getAll);
+router.post('/api/items', ExampleController.create);
+router.put('/api/items/:id', ExampleController.update);
+router.delete('/api/items/:id', ExampleController.delete);
+
+// View routes
+router.get('/items', (req, res) => {
+    res.render('tenant/items', {
+        title: 'Öğe Yönetimi',
+        tenantName: req.tenantName,
+        activePage: 'items'
+    });
+});
+```
+
+#### 3. Frontend HTMX Pattern
+```html
+<!-- Liste Sayfası -->
+<div class="page-header">
+    <h1>Öğe Yönetimi</h1>
+    <button class="btn btn-primary" data-action="open-modal" data-modal="createModal">
+        ➕ Yeni Öğe
+    </button>
+</div>
+
+<!-- Tablo -->
+<div id="itemsTable" hx-get="/api/items" hx-trigger="load" hx-swap="innerHTML">
+    <div class="loading">Yükleniyor...</div>
+</div>
+
+<!-- Create Modal -->
+<%- include('partials/components/modal', {
+    id: 'createModal',
+    title: 'Yeni Öğe Oluştur',
+    form: {
+        hxPost: '/api/items',
+        hxTarget: '#itemsTable',
+        hxSwap: 'innerHTML'
+    },
+    content: `
+        <%- include('partials/components/form-group', {
+            type: 'text',
+            name: 'name',
+            label: 'Öğe Adı',
+            required: true
+        }) %>
+        <%- include('partials/components/form-group', {
+            type: 'textarea',
+            name: 'description',
+            label: 'Açıklama'
+        }) %>
+    `,
+    buttons: [
+        { text: 'İptal', class: 'btn-outline', action: 'close-modal' },
+        { text: 'Kaydet', type: 'submit', class: 'btn-primary' }
+    ]
+}) %>
+```
+
+## 🗄️ Database İşlemleri (ZORUNLU KURALLAR)
+
+### 🔒 Veri Güvenliği
+```javascript
+// ✅ DOĞRU - Mevcut verileri koruyarak migration
+const addNewColumnToTenant = async (dbName) => {
+    try {
+        // Önce sütunun var olup olmadığını kontrol et
+        const checkColumnQuery = `
+            SELECT COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?
+        `;
+        
+        const existingColumns = await executeTenantQuery(dbName, checkColumnQuery, [dbName, 'table_name', 'new_column']);
+        
+        if (existingColumns.length === 0) {
+            // Sütun yoksa ekle
+            await executeTenantQuery(dbName, 'ALTER TABLE table_name ADD COLUMN new_column VARCHAR(255) DEFAULT NULL');
+            console.log(`✅ New column added to ${dbName}`);
+        } else {
+            console.log(`ℹ️ Column already exists in ${dbName}`);
+        }
+        
+        return true;
+    } catch (error) {
+        console.error(`❌ Error adding column to ${dbName}:`, error.message);
+        return false;
+    }
+};
+
+// ❌ YANLIŞ - Veri kaybına neden olabilir
+await executeTenantQuery(dbName, 'DROP TABLE IF EXISTS table_name'); // YASAK!
+```
+
+### 🔄 Migration Pattern
+```javascript
+// Tüm tenant'lara güvenli migration
+const migrateAllTenants = async () => {
+    try {
+        const tenants = await executeQuery('SELECT db_name FROM tenants WHERE status = "active"');
+        
+        let successCount = 0;
+        let errorCount = 0;
+        
+        for (const tenant of tenants) {
+            const success = await addNewColumnToTenant(tenant.db_name);
+            if (success) {
+                successCount++;
+            } else {
+                errorCount++;
+            }
+        }
+        
+        return { successCount, errorCount, total: tenants.length };
+    } catch (error) {
+        console.error('Migration error:', error.message);
+        throw error;
+    }
+};
+```
+
+---
+
+# 📱 RESPONSIVE DESIGN REHBERİ
+
+## 🎯 Responsive Design Stratejisi
+
+### 📐 Breakpoint Sistemi
+```css
+/* Mobile First Approach - ZORUNLU */
+:root {
+    --mobile: 0px;      /* 0-767px */
+    --tablet: 768px;    /* 768-1023px */
+    --desktop: 1024px;  /* 1024px+ */
+    --wide: 1440px;     /* 1440px+ */
+}
+
+/* Kullanım */
+@media (min-width: 768px) { /* Tablet */ }
+@media (min-width: 1024px) { /* Desktop */ }
+@media (min-width: 1440px) { /* Wide Screen */ }
+```
+
+### 🏗️ Layout Sistemi
+
+#### 1. Dashboard Layout
+```css
+.dashboard-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Mobile: Stack layout */
+@media (max-width: 1023px) {
+    .dashboard-layout {
+        flex-direction: column;
+    }
+    
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 280px;
+        height: 100vh;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1000;
+    }
+    
+    .sidebar.mobile-open {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+
+/* Desktop: Side-by-side layout */
+@media (min-width: 1024px) {
+    .sidebar {
+        position: fixed;
+        width: 280px;
+        height: 100vh;
+    }
+    
+    .main-content {
+        margin-left: 280px;
+        width: calc(100% - 280px);
+    }
+}
+```
+
+#### 2. Grid System
+```css
+/* Responsive Grid */
+.grid {
+    display: grid;
+    gap: 1rem;
+}
+
+/* Mobile: Single column */
+.grid {
+    grid-template-columns: 1fr;
+}
+
+/* Tablet: 2 columns */
+@media (min-width: 768px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+}
+
+/* Desktop: 3+ columns */
+@media (min-width: 1024px) {
+    .grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+    }
+}
+
+/* Auto-fit grid (flexible) */
+.grid-auto {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+@media (min-width: 768px) {
+    .grid-auto {
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+}
+```
+
+## 📊 Component Responsive Patterns
+
+### 🏷️ Cards
+```css
+.card {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+@media (min-width: 768px) {
+    .card {
+        padding: 1.5rem;
+        border-radius: 12px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .card {
+        padding: 2rem;
+    }
+}
+```
+
+### 📋 Tables
+```css
+.table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+    width: 100%;
+    min-width: 600px; /* Minimum width for readability */
+}
+
+/* Mobile: Compact table */
+@media (max-width: 767px) {
+    .data-table th,
+    .data-table td {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.875rem;
+    }
+    
+    .hidden-mobile {
+        display: none;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* Tablet: Medium spacing */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 0.5rem;
+    }
+}
+
+/* Desktop: Full spacing */
+@media (min-width: 1024px) {
+    .data-table th,
+    .data-table td {
+        padding: 1rem;
+    }
+}
+```
+
+### 🎛️ Forms
+```css
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+@media (min-width: 768px) {
+    .form-label {
+        font-size: 1rem;
+    }
+    
+    .form-input {
+        padding: 0.875rem 1rem;
+    }
+}
+
+/* Form layouts */
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+@media (min-width: 768px) {
+    .form-row {
+        flex-direction: row;
+    }
+    
+    .form-row .form-group {
+        flex: 1;
+    }
+}
+```
+
+### 🔘 Buttons
+```css
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+/* Mobile: Full width buttons */
+@media (max-width: 767px) {
+    .btn-mobile-full {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-group-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+/* Desktop: Inline buttons */
+@media (min-width: 768px) {
+    .btn-group {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+    }
+}
+
+/* Button sizes */
+.btn-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+}
+
+.btn-lg {
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+}
+
+@media (min-width: 768px) {
+    .btn-lg {
+        padding: 1.25rem 2rem;
+        font-size: 1.125rem;
+    }
+}
+```
+
+### 🪟 Modals
+```css
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Mobile: Full width with margin */
+@media (max-width: 767px) {
+    .modal {
+        padding: 0.5rem;
+    }
+    
+    .modal-content {
+        max-width: none;
+        width: calc(100% - 1rem);
+        margin: 0.5rem;
+    }
+    
+    .modal-sm, .modal-lg {
+        max-width: none;
+    }
+}
+
+/* Desktop: Fixed sizes */
+@media (min-width: 768px) {
+    .modal-sm { max-width: 400px; }
+    .modal-md { max-width: 600px; }
+    .modal-lg { max-width: 800px; }
+    .modal-xl { max-width: 1200px; }
+}
+```
+
+## 🎨 Typography Responsive System
+
+```css
+/* Base typography */
+body {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+@media (min-width: 768px) {
+    body {
+        font-size: 16px;
+        line-height: 1.6;
+    }
+}
+
+/* Headings */
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+    .page-title {
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .page-title {
+        font-size: 2.5rem;
+        margin-bottom: 2rem;
+    }
+}
+```
+
+## 📐 Spacing System
+
+```css
+/* Responsive spacing variables */
+:root {
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+}
+
+@media (min-width: 768px) {
+    :root {
+        --spacing-xs: 0.375rem;
+        --spacing-sm: 0.75rem;
+        --spacing-md: 1.25rem;
+        --spacing-lg: 2rem;
+        --spacing-xl: 2.5rem;
+        --spacing-2xl: 4rem;
+    }
+}
+```
+
+## 🎯 JavaScript Responsive Handling
+
+```javascript
+// Responsive handler class
+class ResponsiveHandler {
+    constructor() {
+        this.breakpoints = {
+            mobile: 768,
+            tablet: 1024,
+            desktop: 1440
+        };
+        
+        this.currentBreakpoint = this.getCurrentBreakpoint();
+        this.init();
+    }
+    
+    init() {
+        window.addEventListener('resize', this.debounce(this.handleResize.bind(this), 250));
+        this.handleResize();
+    }
+    
+    getCurrentBreakpoint() {
+        const width = window.innerWidth;
+        
+        if (width < this.breakpoints.mobile) return 'mobile';
+        if (width < this.breakpoints.tablet) return 'tablet';
+        if (width < this.breakpoints.desktop) return 'desktop';
+        return 'wide';
+    }
+    
+    handleResize() {
+        const newBreakpoint = this.getCurrentBreakpoint();
+        
+        if (newBreakpoint !== this.currentBreakpoint) {
+            this.onBreakpointChange(this.currentBreakpoint, newBreakpoint);
+            this.currentBreakpoint = newBreakpoint;
+        }
+        
+        this.updateBodyClasses();
+        this.handleSidebar();
+        this.handleTables();
+        this.handleModals();
+    }
+    
+    updateBodyClasses() {
+        const body = document.body;
+        body.classList.remove('mobile', 'tablet', 'desktop', 'wide');
+        body.classList.add(this.currentBreakpoint);
+    }
+    
+    handleSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.querySelector('.overlay');
+        
+        if (!sidebar) return;
+        
+        if (this.currentBreakpoint === 'mobile') {
+            sidebar.classList.remove('mobile-open');
+            if (overlay) overlay.classList.remove('active');
+        }
+    }
+    
+    handleTables() {
+        const tables = document.querySelectorAll('.data-table');
+        
+        tables.forEach(table => {
+            const container = table.closest('.table-container');
+            if (!container) return;
+            
+            if (this.currentBreakpoint === 'mobile') {
+                container.style.overflowX = 'auto';
+            } else {
+                container.style.overflowX = 'visible';
+            }
+        });
+    }
+    
+    handleModals() {
+        const modals = document.querySelectorAll('.modal');
+        
+        modals.forEach(modal => {
+            const content = modal.querySelector('.modal-content');
+            if (!content) return;
+            
+            if (this.currentBreakpoint === 'mobile') {
+                content.style.width = 'calc(100% - 1rem)';
+                content.style.maxWidth = 'none';
+            } else {
+                content.style.width = '';
+                content.style.maxWidth = '';
+            }
+        });
+    }
+    
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    isMobile() {
+        return this.currentBreakpoint === 'mobile';
+    }
+    
+    isTablet() {
+        return this.currentBreakpoint === 'tablet';
+    }
+    
+    isDesktop() {
+        return this.currentBreakpoint === 'desktop' || this.currentBreakpoint === 'wide';
+    }
+}
+
+// Initialize responsive handler
+document.addEventListener('DOMContentLoaded', () => {
+    window.responsiveHandler = new ResponsiveHandler();
+});
+```
+
+---
+
+# 🧩 COMPONENT REUSABILITY REHBERİ
+
+## 🎯 Component Sistemi Genel Bakış
+
+### 📁 Component Organizasyonu
+```
+views/partials/components/
+├── README.md              # Component dokümantasyonu
+├── include.ejs           # Helper functions
+├── modal.ejs             # Modal component
+├── table.ejs             # Table component
+├── form-group.ejs        # Form input component
+├── button.ejs            # Button component
+├── status-badge.ejs      # Status indicator
+├── pagination.ejs        # Pagination component
+├── breadcrumb.ejs        # Breadcrumb navigation
+├── alert.ejs            # Alert/notification component
+├── loading.ejs          # Loading spinner
+├── empty-state.ejs      # Empty state component
+└── card.ejs             # Card wrapper component
+```
+
+### 🎨 Layout Components
+```
+views/partials/
+├── components/           # Reusable UI components
+├── layouts/
+│   ├── base.ejs         # Base HTML template
+│   ├── dashboard.ejs    # Dashboard layout
+│   └── auth.ejs         # Authentication layout
+├── navigation/
+│   ├── admin-sidebar.ejs    # Admin sidebar
+│   ├── tenant-sidebar.ejs   # Tenant sidebar
+│   ├── top-bar.ejs         # Top navigation bar
+│   └── mobile-menu.ejs     # Mobile menu
+└── shared/
+    ├── head.ejs         # Common head tags
+    ├── scripts.ejs      # Common scripts
+    └── footer.ejs       # Footer component
+```
+
+## 🏗️ Base Layout System
+
+### 1. Base Template Pattern
+```ejs
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <%- include('../shared/head', { 
+        title: title || 'SaaS Platform',
+        description: description || 'Multi-tenant e-ticaret platformu',
+        additionalCSS: additionalCSS || []
+    }) %>
+</head>
+<body class="<%= bodyClass || '' %>">
+    <%- content %>
+    
+    <%- include('../shared/scripts', { 
+        additionalJS: additionalJS || []
+    }) %>
+</body>
+</html>
+```
+
+### 2. Dashboard Layout Pattern
+```ejs
+<%- include('./base', { 
+    title: title,
+    bodyClass: `dashboard ${userType || 'tenant'}`,
+    content: `
+        <div class="dashboard-layout">
+            ${userType === 'admin' ? 
+                include('../navigation/admin-sidebar', { activePage }) : 
+                include('../navigation/tenant-sidebar', { activePage, tenantName })
+            }
+            
+            <main class="main-content">
+                ${include('../navigation/top-bar', { 
+                    title: pageTitle || title,
+                    userType,
+                    tenantName: tenantName || null
+                })}
+                
+                <div class="content">
+                    ${content}
+                </div>
+            </main>
+        </div>
+        
+        <div class="overlay" id="mobileOverlay"></div>
+    `,
+    additionalCSS: ['dashboard.css', 'components.css'],
+    additionalJS: ['dashboard.js', 'ui.js']
+}) %>
+```
+
+### 3. Page Template Usage
+```ejs
+<!-- views/tenant/categories.ejs -->
+<%- include('../partials/layouts/dashboard', {
+    title: 'Kategori Yönetimi',
+    pageTitle: 'Kategoriler',
+    userType: 'tenant',
+    tenantName: tenantName,
+    activePage: 'categories',
+    content: `
+        <!-- Page Header -->
+        ${include('../partials/components/page-header', {
+            title: 'Kategori Yönetimi',
+            subtitle: 'Mağaza kategorilerinizi yönetin',
+            actions: [
+                {
+                    text: 'Yeni Kategori',
+                    icon: '➕',
+                    class: 'btn-primary',
+                    action: 'open-modal',
+                    modal: 'createCategoryModal'
+                }
+            ]
+        })}
+        
+        <!-- Categories Table -->
+        <div class="card">
+            ${include('../partials/components/table', {
+                id: 'categoriesTable',
+                headers: [
+                    { text: 'Ad', key: 'name', sortable: true },
+                    { text: 'Açıklama', key: 'description' },
+                    { text: 'Durum', key: 'status', render: (status) => include('../partials/components/status-badge', { status }) }
+                ],
+                actions: [
+                    { icon: '✏️', text: 'Düzenle', action: 'edit-category', class: 'btn-outline' },
+                    { icon: '🗑️', text: 'Sil', action: 'delete-category', class: 'btn-danger' }
+                ],
+                emptyMessage: 'Henüz kategori eklenmemiş',
+                loadUrl: '/api/categories'
+            })}
+        </div>
+        
+        <!-- Create Modal -->
+        ${include('../partials/components/modal', {
+            id: 'createCategoryModal',
+            title: 'Yeni Kategori Oluştur',
+            size: 'md',
+            form: {
+                hxPost: '/api/categories',
+                hxTarget: '#categoriesTable',
+                hxSwap: 'outerHTML'
+            },
+            content: include('../partials/forms/category-form', { mode: 'create' }),
+            buttons: [
+                { text: 'İptal', class: 'btn-outline', action: 'close-modal' },
+                { text: 'Kaydet', type: 'submit', class: 'btn-primary' }
+            ]
+        })}
+    `
+}) %>
+```
+
+## 🧩 Enhanced Components
+
+### 1. Enhanced Modal Component Pattern
+```ejs
+<!-- views/partials/components/modal.ejs -->
+<%
+/**
+ * Modal Component
+ * @param {string} id - Modal unique ID
+ * @param {string} title - Modal title
+ * @param {string} size - Modal size: 'sm', 'md', 'lg', 'xl'
+ * @param {object} form - Form configuration
+ * @param {string} content - Modal body content
+ * @param {array} buttons - Button configuration
+ * @param {boolean} closable - Can be closed by clicking outside
+ */
+const modalId = id || 'modal';
+const modalSize = size || 'md';
+const isClosable = closable !== false;
+%>
+
+<div class="modal <%= className || '' %>" 
+     id="<%= modalId %>" 
+     data-closable="<%= isClosable %>">
+    <div class="modal-backdrop" 
+         <% if (isClosable) { %>onclick="closeModal('<%= modalId %>')"<% } %>></div>
+    
+    <div class="modal-content modal-<%= modalSize %>">
+        <div class="modal-header">
+            <h3 class="modal-title">
+                <% if (typeof icon !== 'undefined') { %>
+                <span class="modal-icon"><%= icon %></span>
+                <% } %>
+                <%= title %>
+            </h3>
+            <% if (isClosable) { %>
+            <button class="modal-close" onclick="closeModal('<%= modalId %>')" type="button">✕</button>
+            <% } %>
+        </div>
+        
+        <% if (typeof form !== 'undefined' && form) { %>
+        <form id="<%= modalId %>Form" 
+              <% if (form.hxPost) { %>hx-post="<%= form.hxPost %>"<% } %>
+              <% if (form.hxPut) { %>hx-put="<%= form.hxPut %>"<% } %>
+              <% if (form.hxTarget) { %>hx-target="<%= form.hxTarget %>"<% } %>
+              <% if (form.hxSwap) { %>hx-swap="<%= form.hxSwap %>"<% } %>
+              onsubmit="return handleFormSubmit(event, '<%= modalId %>')">
+        <% } %>
+        
+        <div class="modal-body">
+            <div class="modal-content-wrapper" id="<%= modalId %>Content">
+                <%- content %>
+            </div>
+        </div>
+        
+        <% if (typeof buttons !== 'undefined' && buttons && buttons.length > 0) { %>
+        <div class="modal-footer">
+            <% buttons.forEach(function(button) { %>
+                <button 
+                    type="<%= button.type || 'button' %>"
+                    class="btn <%= button.class || 'btn-outline' %>"
+                    <% if (button.action) { %>data-action="<%= button.action %>"<% } %>
+                    <% if (button.modal) { %>data-modal="<%= button.modal %>"<% } %>>
+                    <%= button.text %>
+                </button>
+            <% }); %>
+        </div>
+        <% } %>
+        
+        <% if (typeof form !== 'undefined' && form) { %>
+        </form>
+        <% } %>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('<%= modalId %>');
+    if (modal) {
+        initializeModal('<%= modalId %>');
+    }
+});
+</script>
+```
+
+### 2. Advanced Table Component Pattern
+```ejs
+<!-- views/partials/components/table.ejs -->
+<%
+/**
+ * Advanced Table Component
+ * @param {string} id - Table unique ID
+ * @param {array} headers - Column definitions
+ * @param {array} rows - Data rows (optional for HTMX loading)
+ * @param {array} actions - Row action buttons
+ * @param {string} emptyMessage - Message when no data
+ * @param {string} loadUrl - HTMX load URL
+ * @param {boolean} sortable - Enable sorting
+ * @param {boolean} searchable - Enable search
+ */
+const tableId = id || 'dataTable';
+const isSearchable = searchable !== false;
+const isSortable = sortable !== false;
+%>
+
+<div class="table-wrapper <%= className || '' %>" id="<%= tableId %>Wrapper">
+    <% if (isSearchable) { %>
+    <div class="table-controls">
+        <div class="table-search">
+            <input type="text" 
+                   class="search-input" 
+                   placeholder="Ara..." 
+                   id="<%= tableId %>Search"
+                   oninput="searchTable('<%= tableId %>', this.value)">
+            <span class="search-icon">🔍</span>
+        </div>
+    </div>
+    <% } %>
+    
+    <div class="table-container" id="<%= tableId %>Container">
+        <% if (typeof loadUrl !== 'undefined' && loadUrl) { %>
+        <div hx-get="<%= loadUrl %>" 
+             hx-trigger="load" 
+             hx-target="#<%= tableId %>Content"
+             hx-swap="innerHTML">
+            <%- include('./loading', { text: 'Veriler yükleniyor...' }) %>
+        </div>
+        <% } %>
+        
+        <div id="<%= tableId %>Content">
+            <table class="data-table" id="<%= tableId %>">
+                <thead>
+                    <tr>
+                        <% headers.forEach(function(header) { %>
+                        <th class="<%= header.sortable && isSortable ? 'sortable' : '' %>"
+                            <% if (header.sortable && isSortable) { %>
+                            onclick="sortTable('<%= tableId %>', '<%= header.key %>')"
+                            <% } %>>
+                            <%= header.text %>
+                        </th>
+                        <% }); %>
+                        
+                        <% if (typeof actions !== 'undefined' && actions) { %>
+                        <th class="actions-column">İşlemler</th>
+                        <% } %>
+                    </tr>
+                </thead>
+                <tbody id="<%= tableId %>Body">
+                    <% if (typeof rows !== 'undefined' && rows && rows.length > 0) { %>
+                        <% rows.forEach(function(row) { %>
+                        <tr data-id="<%= row.id %>">
+                            <% headers.forEach(function(header) { %>
+                            <td>
+                                <% if (header.render && typeof header.render === 'function') { %>
+                                    <%- header.render(row[header.key], row) %>
+                                <% } else { %>
+                                    <%= row[header.key] || '-' %>
+                                <% } %>
+                            </td>
+                            <% }); %>
+                            
+                            <% if (typeof actions !== 'undefined' && actions) { %>
+                            <td class="actions-column">
+                                <div class="action-buttons">
+                                    <% actions.forEach(function(action) { %>
+                                    <button 
+                                        class="btn-sm <%= action.class || 'btn-outline' %>"
+                                        onclick="rowAction('<%= action.action %>', '<%= row.id %>', this)">
+                                        <%= action.icon %> <%= action.text %>
+                                    </button>
+                                    <% }); %>
+                                </div>
+                            </td>
+                            <% } %>
+                        </tr>
+                        <% }); %>
+                    <% } else if (typeof loadUrl === 'undefined') { %>
+                    <tr>
+                        <td colspan="<%= headers.length + (actions ? 1 : 0) %>">
+                            <%- include('./empty-state', { 
+                                message: emptyMessage || 'Veri bulunamadı',
+                                icon: '📄'
+                            }) %>
+                        </td>
+                    </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initializeTable('<%= tableId %>', {
+        sortable: <%= isSortable %>,
+        searchable: <%= isSearchable %>
+    });
+});
+</script>
+```
+
+## 🎯 Component Usage Best Practices
+
+### 1. Consistent Component Calling
+```ejs
+<!-- ✅ DOĞRU: Parametreli component kullanımı -->
+<%- include('partials/components/modal', {
+    id: 'editModal',
+    title: 'Düzenle',
+    size: 'lg',
+    content: include('partials/forms/edit-form', { item: item })
+}) %>
+
+<!-- ❌ YANLIŞ: Hard-coded HTML -->
+<div class="modal">
+    <div class="modal-content">
+        <!-- Tekrarlanan kod -->
+    </div>
+</div>
+```
+
+### 2. Component Composition
+```ejs
+<%- include('partials/layouts/dashboard', {
+    title: 'Ürün Yönetimi',
+    content: `
+        ${include('partials/components/page-header', {
+            title: 'Ürünler',
+            actions: [{ text: 'Yeni Ürün', action: 'create-product' }]
+        })}
+        
+        ${include('partials/components/card', {
+            title: 'Ürün Listesi',
+            content: include('partials/components/table', {
+                headers: productHeaders,
+                loadUrl: '/api/products'
+            })
+        })}
+    `
+}) %>
+```
+
+---
+
+# ⚡ CURSOR TOKEN OPTİMİZASYON REHBERİ
+
+## 🎯 Token Optimizasyon Stratejileri
+
+### 📊 Token Kullanım Analizi
+```
+❌ Verimsiz İşlemler:
+- Tüm codebase'i okuma (5000+ token)
+- Gereksiz dosya analizi (2000+ token)
+- Tekrarlı aynı sorular (1000+ token)
+- Belirsiz promptlar (500+ token)
+
+✅ Verimli İşlemler:
+- Spesifik dosya okuma (200-500 token)
+- Targeted semantic search (300-800 token)
+- Pattern-based development (100-300 token)
+- Context-aware prompts (50-200 token)
+```
+
+### 🎯 Efficient Prompting Strategies
+
+#### 1. Context-First Approach
+```
+❌ Verimsiz:
+"Bu projeye yeni bir özellik ekle"
+
+✅ Verimli:
+"src/controllers/CategoryController.js pattern'ini takip ederek ProductController.js'ye search functionality ekle. Mevcut CRUD response formatını koru."
+```
+
+#### 2. Pattern Reference Method
+```
+❌ Verimsiz:
+"Yeni bir modal oluştur"
+
+✅ Verimli:
+"views/partials/components/modal.ejs template'ini kullanarak category-edit-modal.ejs oluştur. Parametreler: id='editCategoryModal', title='Kategori Düzenle'"
+```
+
+#### 3. Batch Operations
+```
+❌ Verimsiz: 3 ayrı prompt
+1. "CategoryController'a pagination ekle"
+2. "ProductController'a pagination ekle"  
+3. "OrderController'a pagination ekle"
+
+✅ Verimli: 1 prompt
+"Bu 3 controller'a aynı pagination pattern'ini ekle: CategoryController.js, ProductController.js, OrderController.js. Mevcut getAll metodlarını güncelle."
+```
+
+## 🔍 Smart Semantic Search
+
+### 📝 Effective Search Queries
+
+#### ✅ İyi Semantic Search Örnekleri
+```javascript
+// Spesifik ve hedefli sorgular
+"How does category CRUD work in this project?"
+"Where are tenant database connections managed?"
+"What is the authentication middleware pattern?"
+"How are API responses formatted in this codebase?"
+"Where is the modal component defined and how is it used?"
+```
+
+#### ❌ Kötü Semantic Search Örnekleri
+```javascript
+// Belirsiz ve genel sorgular
+"CategoryController"
+"database"
+"modal"
+"authentication"
+"API"
+```
+
+### 🎯 Search Strategy Framework
+
+#### 1. Hierarchical Search Pattern
+```javascript
+// Level 1: High-level understanding
+"How does the multi-tenant architecture work?"
+
+// Level 2: Specific component analysis  
+"How are tenant databases created and managed?"
+
+// Level 3: Implementation details
+"What is the pattern for tenant database migrations?"
+```
+
+## 📋 Context Management
+
+### 🧠 Context Preservation Techniques
+
+#### 1. Reference Documentation
+```javascript
+/**
+ * CONTEXT: Multi-tenant category management
+ * PATTERN: Standard CRUD with soft delete
+ * DEPENDENCIES: src/utils/db.js (executeTenantQuery)
+ * RELATED: views/tenant/categories.ejs, CategoryController.js
+ * RESPONSE_FORMAT: {success, data, message, timestamp}
+ */
+```
+
+#### 2. Pattern Documentation
+```javascript
+/**
+ * STANDARD_CRUD_PATTERN:
+ * - GET /api/resource -> getAll() method
+ * - POST /api/resource -> create() method  
+ * - PUT /api/resource/:id -> update() method
+ * - DELETE /api/resource/:id -> delete() method (soft delete)
+ * - Response format: {success, data, message, timestamp}
+ */
+```
+
+## 🚀 Development Workflow Optimization
+
+### ⚡ Fast Development Patterns
+
+#### 1. Template-Based Development
+```
+Workflow:
+1. Identify similar existing component
+2. Reference exact file path and pattern
+3. Specify only the differences
+4. Use batch operations for multiple files
+
+Example:
+"src/controllers/CategoryController.js pattern'ini kopyalayarak BrandController.js oluştur. Sadece model adını 'brands' olarak değiştir."
+```
+
+#### 2. Incremental Enhancement
+```
+Workflow:
+1. Start with minimal viable implementation
+2. Add features one by one with specific prompts
+3. Reference existing patterns for each addition
+4. Test incrementally
+
+Example:
+"Mevcut CategoryController.js'ye search functionality ekle. ProductController.js'deki search pattern'ini kullan."
+```
+
+### 🔄 Iterative Development Prevention
+
+#### 1. Comprehensive Initial Analysis
+```
+Before starting development:
+✅ Analyze existing similar implementations
+✅ Identify all required dependencies  
+✅ Map out component relationships
+✅ Plan the complete feature scope
+
+Prompt example:
+"ProductController.js'ye benzer şekilde CategoryController.js oluşturmadan önce, mevcut CRUD pattern'ini, database schema'sını ve response format'ını analiz et."
+```
+
+#### 2. Dependency Mapping
+```
+Always include in prompts:
+✅ Related files that need updates
+✅ Database schema requirements
+✅ Frontend component dependencies
+✅ API endpoint impacts
+
+Example:
+"CategoryController.js oluştururken şu dosyaları da güncelle: src/routes/tenant.js (route tanımları), views/tenant/categories.ejs (frontend), src/models/Category.js (model)"
+```
+
+## 📊 Performance Monitoring
+
+### 📈 Efficiency Benchmarks
+```
+Token Efficiency Targets:
+🎯 Excellent: <200 tokens per feature implementation
+✅ Good: 200-500 tokens per feature implementation  
+⚠️ Acceptable: 500-1000 tokens per feature implementation
+❌ Poor: >1000 tokens per feature implementation
+
+Prompt Efficiency Targets:
+🎯 Excellent: >80% successful first-try implementations
+✅ Good: 60-80% successful first-try implementations
+⚠️ Acceptable: 40-60% successful first-try implementations  
+❌ Poor: <40% successful first-try implementations
+```
+
+## 🎯 Specific Optimization Techniques
+
+### 🔧 Code Generation Shortcuts
+
+#### 1. Pattern Replication
+```
+Instead of explaining everything:
+"CategoryController.js'yi ProductController.js olarak kopyala, sadece 'categories' -> 'products' değiştir"
+
+Instead of building from scratch:
+"views/tenant/categories.ejs template'ini kullanarak products.ejs oluştur"
+```
+
+#### 2. Diff-Based Updates
+```
+Instead of rewriting entire files:
+"CategoryController.js'de sadece getAll metoduna pagination ekle, diğer metodları değiştirme"
+
+Instead of full component recreation:
+"modal.ejs'ye sadece size='xl' seçeneği ekle, mevcut functionality'yi koru"
+```
+
+## 📋 Optimization Checklist
+
+### ✅ Before Each Prompt
+- [ ] Specific file/component reference included
+- [ ] Existing pattern identified and referenced  
+- [ ] Clear, single-purpose objective defined
+- [ ] Dependencies and related files mapped
+- [ ] Expected outcome clearly specified
+
+### ✅ During Development
+- [ ] Use batch operations when possible
+- [ ] Reference existing implementations
+- [ ] Avoid redundant analysis requests
+- [ ] Build incrementally on previous work
+- [ ] Test patterns before full implementation
+
+### ✅ After Implementation
+- [ ] Document patterns for future reference
+- [ ] Update component registry if needed
+- [ ] Note successful prompt patterns
+- [ ] Identify reusable code snippets
+- [ ] Plan next optimization opportunities
+
+---
+
+## 🚨 Kritik Kurallar (KESINLIKLE UYULACAK)
+
+### ❌ YASAK İşlemler
+1. **Framework Değişikliği:** React, Vue, Angular kullanma
+2. **CSS Framework:** Tailwind, Bootstrap ekleme
+3. **ORM Kullanımı:** Sequelize, Prisma ekleme
+4. **Veri Silme:** DROP TABLE, TRUNCATE kullanma
+5. **Hard Delete:** Soft delete yerine hard delete yapma
+6. **Response Format Değişikliği:** Mevcut API response formatını değiştirme
+
+### ✅ ZORUNLU İşlemler
+1. **EJS Template:** Tüm view'lar EJS ile
+2. **HTMX:** AJAX işlemleri için HTMX kullan
+3. **Component Reuse:** Mevcut component'ları kullan
+4. **Tenant Isolation:** Her işlemde tenant kontrolü yap
+5. **Error Handling:** Tüm endpoint'lerde try-catch kullan
+6. **Responsive Design:** Mobile-first yaklaşım
+7. **Migration Safety:** Mevcut verileri koruyarak migration yap
+
+### 🔒 Güvenlik Kuralları
+1. **Input Validation:** Tüm user input'ları validate et
+2. **SQL Injection:** Prepared statements kullan
+3. **XSS Prevention:** Output'ları escape et
+4. **CSRF Protection:** Session token'ları kontrol et
+5. **Rate Limiting:** API endpoint'lerinde rate limit uygula
+
+## 📊 Testing & Debugging
+
+### 🧪 Test Pattern
+```javascript
+// API endpoint test
+const testCategoryAPI = async () => {
+    try {
+        // GET test
+        const response = await fetch('/test1/api/categories');
+        const data = await response.json();
+        console.log('✅ GET categories:', data);
+        
+        // POST test
+        const createResponse = await fetch('/test1/api/categories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: 'Test Category',
+                description: 'Test Description'
+            })
+        });
+        const createData = await createResponse.json();
+        console.log('✅ POST category:', createData);
+        
+    } catch (error) {
+        console.error('❌ Test failed:', error);
+    }
+};
+```
+
+### 🐛 Debug Helpers
+```javascript
+// Debug middleware
+const debugTenant = (req, res, next) => {
+    console.log(`🔍 Tenant: ${req.params.tenant}, DB: ${req.tenantDb}`);
+    next();
+};
+
+// Database query logger
+const logQuery = (query, params) => {
+    console.log(`📊 SQL: ${query}`, params);
+};
+```
+
+## 📚 Documentation Standards
+
+### 📝 Code Comments
+```javascript
+/**
+ * Kategori CRUD işlemleri
+ * @description Tenant-specific kategori yönetimi
+ * @route GET /api/categories - Kategorileri listele
+ * @route POST /api/categories - Yeni kategori oluştur
+ * @route PUT /api/categories/:id - Kategori güncelle
+ * @route DELETE /api/categories/:id - Kategori sil (soft delete)
+ */
+```
+
+## 🎯 Geliştirme Süreci
+
+### 1. Analiz Aşaması
+- Mevcut kodu semantic search ile incele
+- Pattern'leri tespit et
+- Dependency'leri mapple
+
+### 2. Planlama Aşaması
+- Hangi dosyaların etkileneceğini belirle
+- Component reuse fırsatlarını tespit et
+- Migration gereksinimlerini analiz et
+
+### 3. Implementation Aşaması
+- Mevcut pattern'leri takip et
+- Component'ları yeniden kullan
+- Test ederek ilerle
+
+### 4. Validation Aşaması
+- API endpoint'lerini test et
+- Responsive design'ı kontrol et
+- Tenant isolation'ı doğrula
+
+---
+
+## 📋 ÖZET
+
+Bu kapsamlı kural dosyası, tüm geliştirme rehberlerini tek bir dosyada toplar:
+
+1. ✅ **Temel Kurallar:** Teknoloji stack, proje yapısı, CRUD pattern'leri
+2. ✅ **Responsive Design:** Breakpoint sistemi, component patterns
+3. ✅ **Component Reusability:** Layout sistemi, reusable components
+4. ✅ **Token Optimizasyonu:** Efficient prompting, semantic search strategies
+5. ✅ **Güvenlik ve Test:** Migration safety, debugging patterns
+
+**TÜM KURALLAR TEK DOSYADA!** Cursor AI artık bu dosyayı otomatik okuyacak ve tüm kuralları uygulayacak.

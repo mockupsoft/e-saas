@@ -1,0 +1,193 @@
+<!-- Sidebar -->
+<nav class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">
+            <div class="logo-icon">🏪</div>
+            <span class="logo-text"><%= tenantName %></span>
+        </div>
+        <button class="sidebar-toggle">✕</button>
+    </div>
+    
+    <div class="sidebar-nav">
+        <div class="nav-section">
+            <div class="nav-section-title">Ana Menü</div>
+            
+            <!-- Dashboard - herkes görebilir -->
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/dashboard" class="nav-link <%= activePage === 'dashboard' ? 'active' : '' %>">
+                    <div class="nav-icon">📊</div>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+            </div>
+            
+            <!-- Ürün Yönetimi - admin, manager -->
+            <% if (typeof userRole === 'undefined' || !userRole || userRole === 'admin' || userRole === 'manager') { %>
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/products" class="nav-link <%= activePage === 'products' ? 'active' : '' %>">
+                    <div class="nav-icon">📦</div>
+                    <span class="nav-text">Ürün Yönetimi</span>
+                </a>
+            </div>
+            <% } %>
+            
+            <!-- Sipariş Yönetimi - herkes görebilir -->
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/orders" class="nav-link <%= activePage === 'orders' ? 'active' : '' %>">
+                    <div class="nav-icon">📋</div>
+                    <span class="nav-text">Sipariş Yönetimi</span>
+                </a>
+            </div>
+            
+            <!-- Müşteri Yönetimi - herkes görebilir -->
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/customers" class="nav-link <%= activePage === 'customers' ? 'active' : '' %>">
+                    <div class="nav-icon">👥</div>
+                    <span class="nav-text">Müşteri Yönetimi</span>
+                </a>
+            </div>
+            
+            <!-- Affiliate Sistemi - admin, manager -->
+            <% if (typeof userRole === 'undefined' || !userRole || userRole === 'admin' || userRole === 'manager') { %>
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/affiliates" class="nav-link <%= activePage === 'affiliates' ? 'active' : '' %>">
+                    <div class="nav-icon">🤝</div>
+                    <span class="nav-text">Affiliate Sistemi</span>
+                </a>
+            </div>
+            <% } %>
+        </div>
+        
+        <div class="nav-section">
+            <div class="nav-section-title">Satış & Pazarlama</div>
+            
+            <!-- Kategoriler - herkes görebilir -->
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/categories" class="nav-link <%= activePage === 'categories' ? 'active' : '' %>">
+                    <div class="nav-icon">📁</div>
+                    <span class="nav-text">Kategoriler</span>
+                </a>
+            </div>
+            
+            <!-- Markalar - herkes görebilir -->
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/brands" class="nav-link <%= activePage === 'brands' ? 'active' : '' %>">
+                    <div class="nav-icon">🏷️</div>
+                    <span class="nav-text">Markalar</span>
+                </a>
+            </div>
+            
+            <!-- Kupon Yönetimi - herkes görebilir -->
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/coupons" class="nav-link <%= activePage === 'coupons' ? 'active' : '' %>">
+                    <div class="nav-icon">🎫</div>
+                    <span class="nav-text">Kupon Yönetimi</span>
+                </a>
+            </div>
+            
+            <!-- Komisyon Ödemeleri - admin, manager -->
+            <% if (typeof userRole === 'undefined' || !userRole || userRole === 'admin' || userRole === 'manager') { %>
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/affiliate-sales" class="nav-link <%= activePage === 'affiliate-sales' ? 'active' : '' %>">
+                    <div class="nav-icon">💰</div>
+                    <span class="nav-text">Komisyon Ödemeleri</span>
+                </a>
+            </div>
+            <% } %>
+            
+            <!-- Kampanyalar - admin only -->
+            <% if (typeof userRole === 'undefined' || !userRole || userRole === 'admin') { %>
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/campaigns" class="nav-link <%= activePage === 'campaigns' ? 'active' : '' %>">
+                    <div class="nav-icon">🎯</div>
+                    <span class="nav-text">Kampanyalar</span>
+                </a>
+            </div>
+            <% } %>
+        </div>
+        
+        <div class="nav-section">
+            <div class="nav-section-title">İçerik & Görünüm</div>
+            
+            <!-- Stok Yönetimi - herkes görebilir -->
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/inventory" class="nav-link <%= activePage === 'inventory' ? 'active' : '' %>">
+                    <div class="nav-icon">📊</div>
+                    <span class="nav-text">Stok Yönetimi</span>
+                </a>
+            </div>
+            
+            <!-- Tema Ayarları - admin only -->
+            <% if (typeof userRole === 'undefined' || !userRole || userRole === 'admin') { %>
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/themes" class="nav-link <%= activePage === 'themes' ? 'active' : '' %>">
+                    <div class="nav-icon">🎨</div>
+                    <span class="nav-text">Tema Ayarları</span>
+                </a>
+            </div>
+            <% } %>
+            
+            <!-- Sayfalar - admin only -->
+            <% if (typeof userRole === 'undefined' || !userRole || userRole === 'admin') { %>
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/pages" class="nav-link <%= activePage === 'pages' ? 'active' : '' %>">
+                    <div class="nav-icon">📄</div>
+                    <span class="nav-text">Sayfalar</span>
+                </a>
+            </div>
+            <% } %>
+        </div>
+        
+        <div class="nav-section">
+            <div class="nav-section-title">Sistem</div>
+            
+            <!-- Personel Yönetimi - admin only -->
+            <% if (typeof userRole === 'undefined' || !userRole || userRole === 'admin') { %>
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/staff" class="nav-link <%= activePage === 'staff' ? 'active' : '' %>">
+                    <div class="nav-icon">👥</div>
+                    <span class="nav-text">Personel Yönetimi</span>
+                </a>
+            </div>
+            <% } %>
+            
+            <!-- Analytics - herkes görebilir -->
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/reports" class="nav-link <%= activePage === 'reports' ? 'active' : '' %>">
+                    <div class="nav-icon">📈</div>
+                    <span class="nav-text">Analytics</span>
+                </a>
+            </div>
+            
+            <!-- Ayarlar - admin only -->
+            <% if (typeof userRole === 'undefined' || !userRole || userRole === 'admin') { %>
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/settings" class="nav-link <%= activePage === 'settings' ? 'active' : '' %>">
+                    <div class="nav-icon">⚙️</div>
+                    <span class="nav-text">Ayarlar</span>
+                </a>
+            </div>
+            <% } %>
+            
+            <!-- Faturalandırma - admin only -->
+            <% if (typeof userRole === 'undefined' || !userRole || userRole === 'admin') { %>
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/billing" class="nav-link <%= activePage === 'billing' ? 'active' : '' %>">
+                    <div class="nav-icon">💳</div>
+                    <span class="nav-text">Faturalandırma</span>
+                </a>
+            </div>
+            <% } %>
+            
+            <!-- Destek - herkes görebilir -->
+            <div class="nav-item">
+                <a href="/<%= tenantDomain %>/support" class="nav-link <%= activePage === 'support' ? 'active' : '' %>">
+                    <div class="nav-icon">🎧</div>
+                    <span class="nav-text">Destek</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Auth JavaScript Include -->
+<script src="/js/auth.js"></script> 

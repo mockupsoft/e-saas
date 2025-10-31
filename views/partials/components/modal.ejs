@@ -1,0 +1,50 @@
+<%# 
+Modal Component
+Parameters:
+- id: Modal ID
+- title: Modal title
+- size: 'sm', 'md', 'lg' (default: 'md')
+- form: Form configuration (action, method, hx-target, hx-swap)
+- buttons: Array of button objects {text, type, class, action}
+- content: Modal body content (pass as slot)
+%>
+
+<div class="modal" id="<%= id %>">
+    <div class="modal-content modal-<%= size || 'md' %>">
+        <div class="modal-header">
+            <h3 class="modal-title"><%= title %></h3>
+            <button class="modal-close" data-action="close-modal" data-modal="<%= id %>">✕</button>
+        </div>
+        
+        <% if (typeof form !== 'undefined' && form) { %>
+        <form id="<%= id %>Form" 
+              <% if (form.action) { %>action="<%= form.action %>"<% } %>
+              <% if (form.method) { %>method="<%= form.method %>"<% } %>
+              <% if (form.hxPost) { %>hx-post="<%= form.hxPost %>"<% } %>
+              <% if (form.hxTarget) { %>hx-target="<%= form.hxTarget %>"<% } %>
+              <% if (form.hxSwap) { %>hx-swap="<%= form.hxSwap %>"<% } %>>
+        <% } %>
+        
+        <div class="modal-body">
+            <%- content %>
+        </div>
+        
+        <% if (typeof buttons !== 'undefined' && buttons && buttons.length > 0) { %>
+        <div class="modal-footer">
+            <% buttons.forEach(function(button) { %>
+                <button 
+                    type="<%= button.type || 'button' %>"
+                    class="btn <%= button.class || 'btn-outline' %>"
+                    <% if (button.action) { %>data-action="<%= button.action %>"<% } %>
+                    <% if (button.modal) { %>data-modal="<%= button.modal %>"<% } %>>
+                    <%= button.text %>
+                </button>
+            <% }); %>
+        </div>
+        <% } %>
+        
+        <% if (typeof form !== 'undefined' && form) { %>
+        </form>
+        <% } %>
+    </div>
+</div> 

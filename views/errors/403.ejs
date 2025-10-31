@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= tenantName %> - Erişim Reddedildi</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <style>
+        .error-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+        }
+        .error-card {
+            background: white;
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        .error-title {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #dc2626;
+            margin-bottom: 1rem;
+        }
+        .error-description {
+            color: #6b7280;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        .role-info {
+            background: #f9fafb;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            border-left: 4px solid #dc2626;
+        }
+        .role-info strong {
+            color: #374151;
+        }
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #00C9FF 0%, #92FE9D 100%);
+            color: white;
+        }
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .tenant-info {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-card">
+            <div class="error-icon">🚫</div>
+            <h1 class="error-title">Erişim Reddedildi</h1>
+            <p class="error-description">
+                Bu sayfayı görüntüleme yetkiniz bulunmuyor. Lütfen sistem yöneticinizle iletişime geçin.
+            </p>
+            
+            <div class="role-info">
+                <div style="margin-bottom: 0.5rem;">
+                    <strong>Sizin Rolünüz:</strong> 
+                    <span style="color: #dc2626;">
+                        <%= userRole === 'admin' ? 'Yönetici' : userRole === 'manager' ? 'Müdür' : userRole === 'viewer' ? 'Görüntüleyici' : userRole %>
+                    </span>
+                </div>
+                <div>
+                    <strong>Gerekli Roller:</strong> 
+                    <span style="color: #059669;">
+                        <%= requiredRoles.map(role => 
+                            role === 'admin' ? 'Yönetici' : 
+                            role === 'manager' ? 'Müdür' : 
+                            role === 'viewer' ? 'Görüntüleyici' : role
+                        ).join(' veya ') %>
+                    </span>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <a href="/<%= tenantDomain %>/dashboard" class="btn btn-primary">
+                    🏠 Ana Sayfaya Dön
+                </a>
+                <a href="javascript:history.back()" class="btn btn-secondary">
+                    ⬅️ Geri Git
+                </a>
+            </div>
+
+            <div class="tenant-info">
+                <div><strong><%= tenantName %></strong></div>
+                <div>Tenant Paneli</div>
+                <% if (currentUser) { %>
+                    <div style="margin-top: 0.5rem;">
+                        Giriş Yapan: <strong><%= currentUser.name %></strong> (<%= currentUser.email %>)
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 5 saniye sonra otomatik dashboard'a yönlendir
+        setTimeout(() => {
+            if (confirm('Ana sayfaya yönlendirilmek ister misiniz?')) {
+                window.location.href = '/<%= tenantDomain %>/dashboard';
+            }
+        }, 5000);
+    </script>
+</body>
+</html> 

@@ -1,0 +1,84 @@
+<%# 
+Form Group Component
+Parameters:
+- type: 'text', 'email', 'password', 'select', 'textarea', 'number', 'tel'
+- name: Input name attribute
+- id: Input id attribute
+- label: Label text
+- value: Default value
+- placeholder: Placeholder text
+- required: Boolean for required field
+- help: Help text below input
+- error: Error message
+- options: Array for select options {value, text, selected}
+- attributes: Additional HTML attributes object
+%>
+
+<div class="form-group">
+    <% if (typeof label !== 'undefined' && label) { %>
+    <label class="form-label" for="<%= id || name %>">
+        <%= label %>
+        <% if (typeof required !== 'undefined' && required) { %><span class="required">*</span><% } %>
+    </label>
+    <% } %>
+    
+    <% if (typeof type !== 'undefined' && type === 'select') { %>
+    <select 
+        class="form-select <%= typeof error !== 'undefined' && error ? 'form-error-input' : '' %>"
+        name="<%= name %>"
+        id="<%= id || name %>"
+        <% if (typeof required !== 'undefined' && required) { %>required<% } %>
+        <% if (typeof attributes !== 'undefined' && attributes) { %>
+            <% Object.keys(attributes).forEach(function(attr) { %>
+                <%= attr %>="<%= attributes[attr] %>"
+            <% }); %>
+        <% } %>>
+        <% if (typeof placeholder !== 'undefined' && placeholder) { %>
+        <option value=""><%= placeholder %></option>
+        <% } %>
+        <% if (typeof options !== 'undefined' && options) { %>
+            <% options.forEach(function(option) { %>
+            <option value="<%= option.value %>" <% if (option.selected || (typeof value !== 'undefined' && option.value === value)) { %>selected<% } %>>
+                <%= option.text %>
+            </option>
+            <% }); %>
+        <% } %>
+    </select>
+    
+    <% } else if (typeof type !== 'undefined' && type === 'textarea') { %>
+    <textarea 
+        class="form-textarea <%= typeof error !== 'undefined' && error ? 'form-error-input' : '' %>"
+        name="<%= name %>"
+        id="<%= id || name %>"
+        <% if (typeof placeholder !== 'undefined' && placeholder) { %>placeholder="<%= placeholder %>"<% } %>
+        <% if (typeof required !== 'undefined' && required) { %>required<% } %>
+        <% if (typeof attributes !== 'undefined' && attributes) { %>
+            <% Object.keys(attributes).forEach(function(attr) { %>
+                <%= attr %>="<%= attributes[attr] %>"
+            <% }); %>
+        <% } %>><%= typeof value !== 'undefined' ? value : '' %></textarea>
+    
+    <% } else { %>
+    <input 
+        class="form-input <%= typeof error !== 'undefined' && error ? 'form-error-input' : '' %>"
+        type="<%= typeof type !== 'undefined' ? type : 'text' %>"
+        name="<%= name %>"
+        id="<%= id || name %>"
+        <% if (typeof value !== 'undefined' && value) { %>value="<%= value %>"<% } %>
+        <% if (typeof placeholder !== 'undefined' && placeholder) { %>placeholder="<%= placeholder %>"<% } %>
+        <% if (typeof required !== 'undefined' && required) { %>required<% } %>
+        <% if (typeof attributes !== 'undefined' && attributes) { %>
+            <% Object.keys(attributes).forEach(function(attr) { %>
+                <%= attr %>="<%= attributes[attr] %>"
+            <% }); %>
+        <% } %>>
+    <% } %>
+    
+    <% if (typeof help !== 'undefined' && help) { %>
+    <div class="form-help"><%= help %></div>
+    <% } %>
+    
+    <% if (typeof error !== 'undefined' && error) { %>
+    <div class="form-error"><%= error %></div>
+    <% } %>
+</div> 

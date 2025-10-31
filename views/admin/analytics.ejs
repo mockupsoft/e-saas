@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.8"></script>
+    <style>
+        .admin-analytics {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .admin-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .admin-stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 1.5rem;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .admin-stat-card:nth-child(2) {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .admin-stat-card:nth-child(3) {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .admin-stat-card:nth-child(4) {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
+        .admin-stat-card:nth-child(5) {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+        
+        .admin-stat-card:nth-child(6) {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+        
+        .admin-stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .admin-stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        
+        .admin-stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+        
+        .admin-stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+        
+        .charts-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .admin-chart-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e1e5e9;
+        }
+        
+        .admin-chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f1f3f4;
+        }
+        
+        .admin-chart-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #2d3748;
+        }
+        
+        .admin-chart-canvas {
+            position: relative;
+            height: 350px;
+        }
+        
+        .tenant-performance-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        .tenant-performance-table th,
+        .tenant-performance-table td {
+            padding: 0.75rem 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .tenant-performance-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .tenant-name {
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .tenant-domain {
+            color: #4299e1;
+            font-size: 0.8rem;
+        }
+        
+        .system-health {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e1e5e9;
+        }
+        
+        .health-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f1f3f4;
+        }
+        
+        .health-label {
+            font-weight: 500;
+            color: #4a5568;
+        }
+        
+        .health-value {
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+        
+        .health-good {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .health-warning {
+            background: #faf089;
+            color: #744210;
+        }
+        
+        .health-danger {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            color: #a0aec0;
+        }
+        
+        .loading-spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #4299e1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid #e2e8f0;
+        }
+        
+        .admin-page-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .refresh-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+        
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .admin-stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+            }
+            
+            .admin-analytics {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="admin">
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span class="logo-text">Süper Admin</span>
+                </div>
+                <button class="sidebar-toggle">✕</button>
+            </div>
+            
+            <div class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Ana Menü</div>
+                    <div class="nav-item">
+                        <a href="/admin/dashboard" class="nav-link">
+                            <div class="nav-icon">📊</div>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/tenants" class="nav-link">
+                            <div class="nav-icon">👥</div>
+                            <span class="nav-text">Tenant Yönetimi</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/billing" class="nav-link">
+                            <div class="nav-icon">💰</div>
+                            <span class="nav-text">Faturalandırma</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">İzleme</div>
+                    <div class="nav-item">
+                        <a href="/admin/analytics" class="nav-link active">
+                            <div class="nav-icon">📈</div>
+                            <span class="nav-text">Analytics</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/logs" class="nav-link">
+                            <div class="nav-icon">📋</div>
+                            <span class="nav-text">Sistem Logları</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/monitoring" class="nav-link">
+                            <div class="nav-icon">🔍</div>
+                            <span class="nav-text">Sistem İzleme</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Mobil</div>
+                    <div class="nav-item">
+                        <a href="/admin/mobile" class="nav-link">
+                            <div class="nav-icon">📱</div>
+                            <span class="nav-text">Mobil Uygulama</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Sistem</div>
+                    <div class="nav-item">
+                        <a href="/admin/settings" class="nav-link">
+                            <div class="nav-icon">⚙️</div>
+                            <span class="nav-text">Ayarlar</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/support" class="nav-link">
+                            <div class="nav-icon">🎧</div>
+                            <span class="nav-text">Destek</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/backup" class="nav-link">
+                            <div class="nav-icon">💾</div>
+                            <span class="nav-text">Yedekleme</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="admin-analytics">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h1 class="admin-page-title">📊 Sistem Analytics & Raporlama</h1>
+                    <button class="refresh-btn" onclick="refreshAllData()">
+                        🔄 Verileri Yenile
+                    </button>
+                </div>
+
+                <!-- System Statistics -->
+                <div class="admin-stats-grid" id="systemStats">
+                    <div class="admin-stat-card">
+                        <span class="admin-stat-icon">🏢</span>
+                        <div class="admin-stat-value" id="totalTenants">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                Yükleniyor...
+                            </div>
+                        </div>
+                        <div class="admin-stat-label">Toplam Tenant</div>
+                    </div>
+
+                    <div class="admin-stat-card">
+                        <span class="admin-stat-icon">✅</span>
+                        <div class="admin-stat-value" id="activeTenants">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                Yükleniyor...
+                            </div>
+                        </div>
+                        <div class="admin-stat-label">Aktif Tenant</div>
+                    </div>
+
+                    <div class="admin-stat-card">
+                        <span class="admin-stat-icon">📦</span>
+                        <div class="admin-stat-value" id="totalOrders">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                Yükleniyor...
+                            </div>
+                        </div>
+                        <div class="admin-stat-label">Toplam Sipariş</div>
+                    </div>
+
+                    <div class="admin-stat-card">
+                        <span class="admin-stat-icon">💰</span>
+                        <div class="admin-stat-value" id="totalRevenue">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                Yükleniyor...
+                            </div>
+                        </div>
+                        <div class="admin-stat-label">Toplam Gelir</div>
+                    </div>
+
+                    <div class="admin-stat-card">
+                        <span class="admin-stat-icon">��</span>
+                        <div class="admin-stat-value" id="avgOrderValue">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                Yükleniyor...
+                            </div>
+                        </div>
+                        <div class="admin-stat-label">Ort. Sipariş Değeri</div>
+                    </div>
+
+                    <div class="admin-stat-card">
+                        <span class="admin-stat-icon">⏱️</span>
+                        <div class="admin-stat-value" id="systemUptime">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                Yükleniyor...
+                            </div>
+                        </div>
+                        <div class="admin-stat-label">Sistem Uptime</div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-container">
+                    <!-- Activity Trend Chart -->
+                    <div class="admin-chart-card">
+                        <div class="admin-chart-header">
+                            <h3 class="admin-chart-title">📈 Sistem Aktivite Trendi (Son 30 Gün)</h3>
+                        </div>
+                        <div class="admin-chart-canvas">
+                            <canvas id="activityChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Top Tenant Performance -->
+                    <div class="admin-chart-card">
+                        <div class="admin-chart-header">
+                            <h3 class="admin-chart-title">🏆 En Performanslı Tenant'lar</h3>
+                        </div>
+                        <div id="tenantPerformanceContainer">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                Yükleniyor...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Health -->
+                <div class="system-health">
+                    <div class="admin-chart-header">
+                        <h3 class="admin-chart-title">🔍 Sistem Sağlığı</h3>
+                    </div>
+                    <div id="systemHealthContainer">
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                            Yükleniyor...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Global variables
+        let activityChart = null;
+        
+        // Utility functions
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('tr-TR', {
+                style: 'currency',
+                currency: 'TRY'
+            }).format(amount);
+        }
+        
+        function formatNumber(num) {
+            return new Intl.NumberFormat('tr-TR').format(num);
+        }
+        
+        function formatUptime(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            
+            if (days > 0) {
+                return `${days}g ${hours}s`;
+            } else if (hours > 0) {
+                return `${hours}s ${minutes}dk`;
+            } else {
+                return `${minutes}dk`;
+            }
+        }
+        
+        // Load system summary statistics
+        async function loadSystemSummary() {
+            try {
+                const response = await fetch('/admin/analytics/api/summary');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const stats = result.data;
+                    
+                    document.getElementById('totalTenants').textContent = formatNumber(stats.totalTenants);
+                    document.getElementById('activeTenants').textContent = formatNumber(stats.activeTenants);
+                    document.getElementById('totalOrders').textContent = formatNumber(stats.totalOrders);
+                    document.getElementById('totalRevenue').textContent = formatCurrency(stats.totalRevenue);
+                    document.getElementById('avgOrderValue').textContent = formatCurrency(stats.avgOrderValue);
+                    document.getElementById('systemUptime').textContent = formatUptime(stats.systemUptime);
+                }
+            } catch (error) {
+                console.error('Sistem özeti yükleme hatası:', error);
+                document.querySelectorAll('.admin-stat-value').forEach(el => {
+                    el.textContent = 'Hata';
+                });
+            }
+        }
+        
+        // Load activity trend chart
+        async function loadActivityChart() {
+            try {
+                const response = await fetch('/admin/analytics/api/activity-trend');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const activityData = result.data;
+                    const ctx = document.getElementById('activityChart').getContext('2d');
+                    
+                    if (activityChart) {
+                        activityChart.destroy();
+                    }
+                    
+                    activityChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: activityData.map(d => {
+                                const date = new Date(d.date);
+                                return date.toLocaleDateString('tr-TR', { 
+                                    day: '2-digit', 
+                                    month: '2-digit' 
+                                });
+                            }),
+                            datasets: [{
+                                label: 'Günlük Sipariş',
+                                data: activityData.map(d => d.total_orders),
+                                borderColor: '#667eea',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                yAxisID: 'y'
+                            }, {
+                                label: 'Günlük Gelir (TL)',
+                                data: activityData.map(d => d.total_revenue),
+                                borderColor: '#4facfe',
+                                backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                yAxisID: 'y1'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            scales: {
+                                y: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'left',
+                                    title: {
+                                        display: true,
+                                        text: 'Sipariş Sayısı'
+                                    }
+                                },
+                                y1: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'right',
+                                    title: {
+                                        display: true,
+                                        text: 'Gelir (TL)'
+                                    },
+                                    grid: {
+                                        drawOnChartArea: false,
+                                    },
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Aktivite grafiği yükleme hatası:', error);
+            }
+        }
+        
+        // Load tenant performance
+        async function loadTenantPerformance() {
+            try {
+                const response = await fetch('/admin/analytics/api/tenant-performance');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const tenants = result.data;
+                    const container = document.getElementById('tenantPerformanceContainer');
+                    
+                    if (tenants.length === 0) {
+                        container.innerHTML = '<div class="loading">Henüz performans verisi yok</div>';
+                        return;
+                    }
+                    
+                    const tableHTML = `
+                        <table class="tenant-performance-table">
+                            <thead>
+                                <tr>
+                                    <th>Tenant</th>
+                                    <th>Sipariş</th>
+                                    <th>Gelir</th>
+                                    <th>Müşteri</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tenants.map(tenant => `
+                                    <tr>
+                                        <td>
+                                            <div class="tenant-name">${tenant.tenant_name}</div>
+                                            <div class="tenant-domain">${tenant.tenant_domain}</div>
+                                        </td>
+                                        <td>${formatNumber(tenant.total_orders)}</td>
+                                        <td>${formatCurrency(tenant.total_revenue)}</td>
+                                        <td>${formatNumber(tenant.unique_customers)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    
+                    container.innerHTML = tableHTML;
+                }
+            } catch (error) {
+                console.error('Tenant performans yükleme hatası:', error);
+                document.getElementById('tenantPerformanceContainer').innerHTML = 
+                    '<div class="loading">Veri yüklenemedi</div>';
+            }
+        }
+        
+        // Load system health
+        async function loadSystemHealth() {
+            try {
+                const response = await fetch('/admin/analytics/api/system-health');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const health = result.data;
+                    const container = document.getElementById('systemHealthContainer');
+                    
+                    const memoryUsage = (health.memory_usage.heapUsed / 1024 / 1024).toFixed(1);
+                    const memoryTotal = (health.memory_usage.heapTotal / 1024 / 1024).toFixed(1);
+                    
+                    const healthHTML = `
+                        <div class="health-item">
+                            <span class="health-label">Database Durumu</span>
+                            <span class="health-value ${health.database_status === 'healthy' ? 'health-good' : 'health-danger'}">
+                                ${health.database_status === 'healthy' ? '✅ Sağlıklı' : '❌ Hata'}
+                            </span>
+                        </div>
+                        <div class="health-item">
+                            <span class="health-label">Aktif Tenant</span>
+                            <span class="health-value health-good">${health.active_tenants} / ${health.total_tenants}</span>
+                        </div>
+                        <div class="health-item">
+                            <span class="health-label">Memory Kullanımı</span>
+                            <span class="health-value ${memoryUsage > 500 ? 'health-warning' : 'health-good'}">${memoryUsage} MB / ${memoryTotal} MB</span>
+                        </div>
+                        <div class="health-item">
+                            <span class="health-label">Sistem Uptime</span>
+                            <span class="health-value health-good">${formatUptime(health.system_uptime)}</span>
+                        </div>
+                        <div class="health-item">
+                            <span class="health-label">Server Zamanı</span>
+                            <span class="health-value health-good">${new Date(health.server_time).toLocaleString('tr-TR')}</span>
+                        </div>
+                    `;
+                    
+                    container.innerHTML = healthHTML;
+                }
+            } catch (error) {
+                console.error('Sistem sağlığı yükleme hatası:', error);
+                document.getElementById('systemHealthContainer').innerHTML = 
+                    '<div class="loading">Veri yüklenemedi</div>';
+            }
+        }
+        
+        // Refresh all data
+        function refreshAllData() {
+            loadSystemSummary();
+            loadActivityChart();
+            loadTenantPerformance();
+            loadSystemHealth();
+        }
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshAllData();
+            
+            // Auto refresh every 5 minutes
+            setInterval(refreshAllData, 300000);
+        });
+    </script>
+</body>
+</html>

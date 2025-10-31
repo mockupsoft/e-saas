@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title><%= tenantName %> - Sipariş Yönetimi</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+</head>
+<body class="tenant">
+    <div class="dashboard-layout">
+        <%- include('../partials/tenant-navigation', { activePage: 'orders' }) %>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">📋 Sipariş Yönetimi</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span class="total-count"><%= orders.length %> Sipariş</span>
+                        <%- include('../partials/components/button', {
+                            type: 'primary',
+                            text: 'Yeni Sipariş',
+                            icon: '➕',
+                            action: 'open-add-order-modal',
+                            attributes: {}
+                        }) %>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Stats Cards -->
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <div class="stat-icon">📋</div>
+                        <div class="stat-number"><%= stats.total %></div>
+                        <div class="stat-label">Toplam Sipariş</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏳</div>
+                        <div class="stat-number"><%= stats.pending %></div>
+                        <div class="stat-label">Beklemede</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🚚</div>
+                        <div class="stat-number"><%= stats.shipped %></div>
+                        <div class="stat-label">Kargoda</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-number">₺<%= stats.totalRevenue.toLocaleString('tr-TR') %></div>
+                        <div class="stat-label">Toplam Gelir</div>
+                    </div>
+                </div>
+
+                <!-- Orders Table -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Sipariş Listesi</h3>
+                        <div class="card-actions">
+                            <button class="btn btn-outline btn-sm" onclick="location.reload()">
+                                <span class="btn-icon">🔄</span> Yenile
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-content" style="padding: 0;">
+                        <div class="table-container" style="overflow-x: auto;">
+                            <table id="ordersTable" class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Müşteri</th>
+                                        <th>Tutar</th>
+                                        <th>Durum</th>
+                                        <th class="hidden-mobile">Tarih</th>
+                                        <th class="actions-column">İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="orders-table-body">
+                                    <% orders.forEach(order => { %>
+                                        <tr class="table-row">
+                                            <td class="font-medium">#<%= order.id %></td>
+                                            <td>
+                                                <div class="customer-info">
+                                                    <strong class="customer-name"><%= order.customer_name %></strong>
+                                                    <div class="customer-email"><%= order.customer_email %></div>
+                                                </div>
+                                            </td>
+                                            <td class="amount-cell">
+                                                <span class="amount">₺<%= parseFloat(order.total_amount).toLocaleString('tr-TR') %></span>
+                                            </td>
+                                            <td>
+                                                <%- include('../partials/components/status-badge', {
+                                                    status: order.status,
+                                                    text: order.status === 'pending' ? 'Beklemede' : 
+                                                          order.status === 'processing' ? 'İşleniyor' :
+                                                          order.status === 'shipped' ? 'Kargoda' :
+                                                          order.status === 'delivered' ? 'Teslim Edildi' :
+                                                          order.status === 'cancelled' ? 'İptal Edildi' : order.status
+                                                }) %>
+                                            </td>
+                                            <td class="hidden-mobile date-cell">
+                                                <%= new Date(order.created_at).toLocaleDateString('tr-TR') %>
+                                            </td>
+                                            <td class="actions-cell">
+                                                <div class="action-buttons">
+                                                    <%- include('../partials/components/button', {
+                                                        type: 'outline',
+                                                        text: '',
+                                                        icon: '👁️',
+                                                        action: 'view-order-detail',
+                                                        attributes: {
+                                                            'data-order-id': order.id,
+                                                            'class': 'btn-sm action-btn',
+                                                            'title': 'Detayları Görüntüle'
+                                                        }
+                                                    }) %>
+                                                    <%- include('../partials/components/button', {
+                                                        type: 'outline',
+                                                        text: '',
+                                                        icon: '✏️',
+                                                        action: 'edit-order',
+                                                        attributes: {
+                                                            'data-order-id': order.id,
+                                                            'class': 'btn-sm action-btn',
+                                                            'title': 'Düzenle'
+                                                        }
+                                                    }) %>
+                                                    <%- include('../partials/components/button', {
+                                                        type: 'danger',
+                                                        text: '',
+                                                        icon: '🗑️',
+                                                        action: 'delete-order',
+                                                        attributes: {
+                                                            'data-order-id': order.id,
+                                                            'class': 'btn-sm action-btn',
+                                                            'title': 'Sil'
+                                                        }
+                                                    }) %>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <% if (orders.length === 0) { %>
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        <h3>Henüz sipariş yok</h3>
+                        <p>İlk siparişinizi oluşturmak için "Yeni Sipariş" butonuna tıklayın.</p>
+                        <%- include('../partials/components/button', {
+                            type: 'primary',
+                            text: 'Yeni Sipariş Ekle',
+                            icon: '➕',
+                            action: 'open-add-order-modal',
+                            attributes: {}
+                        }) %>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Order Modal -->
+    <div class="modal" id="addOrderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Yeni Sipariş Ekle</h3>
+                <button class="modal-close" data-action="close-add-order-modal">✕</button>
+            </div>
+            <form id="addOrderForm">
+                <div class="modal-body">
+                    <%- include('../partials/components/form-group', {
+                        id: 'customer_name',
+                        name: 'customer_name',
+                        type: 'text',
+                        label: 'Müşteri Adı',
+                        placeholder: 'Örn: Ahmet Yılmaz',
+                        required: true
+                    }) %>
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'customer_email',
+                        name: 'customer_email',
+                        type: 'email',
+                        label: 'E-posta',
+                        placeholder: 'ornek@email.com',
+                        required: true
+                    }) %>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <%- include('../partials/components/form-group', {
+                            id: 'total_amount',
+                            name: 'total_amount',
+                            type: 'number',
+                            label: 'Tutar (₺)',
+                            placeholder: '0.00',
+                            required: true,
+                            attributes: { step: '0.01', min: '0' }
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'order_status',
+                            name: 'status',
+                            type: 'select',
+                            label: 'Durum',
+                            options: [
+                                { value: 'pending', text: 'Beklemede' },
+                                { value: 'processing', text: 'İşleniyor' },
+                                { value: 'shipped', text: 'Kargoda' },
+                                { value: 'delivered', text: 'Teslim Edildi' }
+                            ],
+                            defaultValue: 'pending'
+                        }) %>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <%- include('../partials/components/button', {
+                        type: 'secondary',
+                        text: 'İptal',
+                        action: 'close-add-order-modal'
+                    }) %>
+                    <%- include('../partials/components/button', {
+                        type: 'primary',
+                        text: 'Sipariş Ekle',
+                        icon: '➕',
+                        submit: true
+                    }) %>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Order Modal -->
+    <div class="modal" id="editOrderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Sipariş Düzenle</h3>
+                <button class="modal-close" data-action="close-edit-order-modal">✕</button>
+            </div>
+            <form id="editOrderForm">
+                <input type="hidden" id="edit_order_id" name="id">
+                <div class="modal-body">
+                    <%- include('../partials/components/form-group', {
+                        id: 'edit_customer_name',
+                        name: 'customer_name',
+                        type: 'text',
+                        label: 'Müşteri Adı',
+                        placeholder: 'Örn: Ahmet Yılmaz',
+                        required: true
+                    }) %>
+                    
+                    <%- include('../partials/components/form-group', {
+                        id: 'edit_customer_email',
+                        name: 'customer_email',
+                        type: 'email',
+                        label: 'E-posta',
+                        placeholder: 'ornek@email.com',
+                        required: true
+                    }) %>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_total_amount',
+                            name: 'total_amount',
+                            type: 'number',
+                            label: 'Tutar (₺)',
+                            placeholder: '0.00',
+                            required: true,
+                            attributes: { step: '0.01', min: '0' }
+                        }) %>
+                        
+                        <%- include('../partials/components/form-group', {
+                            id: 'edit_order_status',
+                            name: 'status',
+                            type: 'select',
+                            label: 'Durum',
+                            options: [
+                                { value: 'pending', text: 'Beklemede' },
+                                { value: 'processing', text: 'İşleniyor' },
+                                { value: 'shipped', text: 'Kargoda' },
+                                { value: 'delivered', text: 'Teslim Edildi' },
+                                { value: 'cancelled', text: 'İptal Edildi' }
+                            ]
+                        }) %>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <%- include('../partials/components/button', {
+                        type: 'secondary',
+                        text: 'İptal',
+                        action: 'close-edit-order-modal'
+                    }) %>
+                    <%- include('../partials/components/button', {
+                        type: 'primary',
+                        text: 'Sipariş Güncelle',
+                        icon: '💾',
+                        submit: true
+                    }) %>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Order Detail Modal -->
+    <div class="modal" id="orderDetailModal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>📋 Sipariş Detayları</h3>
+                <button class="modal-close" data-action="close-order-detail-modal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="orderDetailContent">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <%- include('../partials/components/button', {
+                    type: 'secondary',
+                    text: 'Kapat',
+                    action: 'close-order-detail-modal'
+                }) %>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/ui.js"></script>
+    <script src="/js/dashboard.js"></script>
+    <script>
+        // Initialize order management when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof window.initializeOrderManagement === 'function') {
+                window.initializeOrderManagement('<%= tenantDomain %>');
+            }
+        });
+
+    </script>
+</body>
+</html> 

@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= tenantName %> - Kupon Yönetimi</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+</head>
+<body class="tenant">
+    <div class="dashboard-layout">
+        <%- include('../partials/tenant-navigation', { activePage: 'coupons' }) %>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">🎫 Kupon Yönetimi</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span class="total-count"><%= coupons.length %> Kupon</span>
+                        <%- include('../partials/components/button', {
+                            variant: 'primary',
+                            text: 'Yeni Kupon',
+                            icon: '➕',
+                            action: 'open-add-coupon-modal',
+                            attributes: {}
+                        }) %>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Stats Cards -->
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎫</div>
+                        <div class="stat-number"><%= stats.total %></div>
+                        <div class="stat-label">Toplam Kupon</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-number"><%= stats.active %></div>
+                        <div class="stat-label">Aktif Kupon</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-number"><%= stats.validCoupons %></div>
+                        <div class="stat-label">Geçerli Kupon</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏰</div>
+                        <div class="stat-number"><%= stats.expired %></div>
+                        <div class="stat-label">Süresi Dolmuş</div>
+                    </div>
+                </div>
+
+                <!-- Coupons Table -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Kupon Listesi</h3>
+                    </div>
+                    <div class="card-content" style="padding: 0;">
+                        <div class="table-container" style="overflow-x: auto;">
+                            <table id="couponsTable" style="width: 100%; min-width: 800px;">
+                                <thead style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                    <tr>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">ID</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Kupon Kodu</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Tip & Tutar</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Min. Sepet</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Bitiş Tarihi</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Durum</th>
+                                        <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="coupons-table-body">
+                                    <% coupons.forEach(coupon => { %>
+                                        <tr class="table-row" style="border-bottom: 1px solid #e5e7eb; transition: all 0.3s ease;">
+                                            <td style="padding: 1rem; font-weight: 500;"><%= coupon.id %></td>
+                                            <td style="padding: 1rem;">
+                                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                    <strong style="font-family: 'Courier New', monospace; background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;"><%= coupon.code %></strong>
+                                                    <% if (coupon.expires_at && new Date(coupon.expires_at) <= new Date()) { %>
+                                                        <span style="font-size: 0.75rem;">⏰</span>
+                                                    <% } %>
+                                                </div>
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                    <% if (coupon.type === 'percentage') { %>
+                                                        <span style="background: #dbeafe; color: #1d4ed8; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600;">%</span>
+                                                        <span style="font-weight: 600;">%<%= coupon.amount %></span>
+                                                    <% } else { %>
+                                                        <span style="background: #d1fae5; color: #065f46; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600;">₺</span>
+                                                        <span style="font-weight: 600;">₺<%= parseFloat(coupon.amount).toLocaleString('tr-TR') %></span>
+                                                    <% } %>
+                                                </div>
+                                            </td>
+                                            <td style="padding: 1rem; color: #6b7280;">
+                                                <% if (coupon.min_cart_total > 0) { %>
+                                                    ₺<%= parseFloat(coupon.min_cart_total).toLocaleString('tr-TR') %>
+                                                <% } else { %>
+                                                    <span style="color: #9ca3af;">Yok</span>
+                                                <% } %>
+                                            </td>
+                                            <td style="padding: 1rem; color: #6b7280;">
+                                                <% if (coupon.expires_at) { %>
+                                                    <% const expiryDate = new Date(coupon.expires_at); %>
+                                                    <% const isExpired = expiryDate <= new Date(); %>
+                                                    <div style="<%= isExpired ? 'color: #dc2626;' : '' %>">
+                                                        <%= expiryDate.toLocaleDateString('tr-TR') %>
+                                                        <% if (isExpired) { %>
+                                                            <div style="font-size: 0.75rem; color: #dc2626;">Süresi Dolmuş</div>
+                                                        <% } %>
+                                                    </div>
+                                                <% } else { %>
+                                                    <span style="color: #059669; font-weight: 500;">Süresiz</span>
+                                                <% } %>
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                <% 
+                                                let statusType = 'success';
+                                                let statusText = 'Aktif';
+                                                
+                                                if (coupon.status === 'inactive') {
+                                                    statusType = 'secondary';
+                                                    statusText = 'Pasif';
+                                                } else if (coupon.expires_at && new Date(coupon.expires_at) <= new Date()) {
+                                                    statusType = 'secondary';
+                                                    statusText = 'Süresi Dolmuş';
+                                                }
+                                                %>
+                                                <%- include('../partials/components/status-badge', {
+                                                    status: statusType,
+                                                    text: statusText
+                                                }) %>
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                <div style="display: flex; gap: 0.5rem;">
+                                                    <%- include('../partials/components/button', {
+                                                        variant: 'outline',
+                                                        text: 'Düzenle',
+                                                        icon: '✏️',
+                                                        size: 'sm',
+                                                        action: 'edit-coupon',
+                                                        attributes: { 'data-coupon-id': coupon.id }
+                                                    }) %>
+                                                    <%- include('../partials/components/button', {
+                                                        variant: 'danger',
+                                                        text: 'Sil',
+                                                        icon: '🗑️',
+                                                        size: 'sm',
+                                                        action: 'delete-coupon',
+                                                        attributes: { 'data-coupon-id': coupon.id }
+                                                    }) %>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <% if(coupons.length === 0) { %>
+                    <div class="empty-state">
+                        <div class="empty-icon">🎫</div>
+                        <h3>Henüz kupon bulunmuyor</h3>
+                        <p>İlk kuponunuzu oluşturmak için "Yeni Kupon" butonuna tıklayın.</p>
+                        <%- include('../partials/components/button', {
+                            variant: 'primary',
+                            text: 'İlk Kupon Oluştur',
+                            icon: '➕',
+                            action: 'open-add-coupon-modal'
+                        }) %>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Coupon Modal -->
+    <%- include('../partials/components/modal', {
+        id: 'addCouponModal',
+        title: 'Yeni Kupon Oluştur',
+        size: 'md',
+        content: `
+            <form id="addCouponForm" hx-post="/api/coupons" hx-trigger="submit" hx-swap="none" hx-indicator="#coupon-loading">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Kupon Kodu *</label>
+                        <input type="text" 
+                               name="code" 
+                               required 
+                               placeholder="örn: INDIRIM20" 
+                               style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-family: 'Courier New', monospace; text-transform: uppercase;"
+                               maxlength="50">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Kupon Tipi *</label>
+                        <select name="type" 
+                                required 
+                                style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem;"
+                                onchange="toggleAmountLabel(this.value)">
+                            <option value="percentage">Yüzde İndirim (%)</option>
+                            <option value="fixed">Sabit Tutar İndirim (₺)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label id="amountLabel" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">İndirim Tutarı (%) *</label>
+                        <input type="number" 
+                               name="amount" 
+                               required 
+                               placeholder="20" 
+                               min="0.01"
+                               max="100"
+                               step="0.01"
+                               style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Minimum Sepet Tutarı (₺)</label>
+                        <input type="number" 
+                               name="min_cart_total" 
+                               placeholder="0" 
+                               min="0"
+                               step="0.01"
+                               style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem;">
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Bitiş Tarihi</label>
+                        <input type="datetime-local" 
+                               name="expires_at" 
+                               style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Durum</label>
+                        <select name="status" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem;">
+                            <option value="active">Aktif</option>
+                            <option value="inactive">Pasif</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" 
+                            data-action="close-modal" 
+                            style="padding: 0.75rem 1.5rem; background: #f3f4f6; color: #374151; border: none; border-radius: 0.5rem; cursor: pointer;">
+                        İptal
+                    </button>
+                    <button type="submit" 
+                            style="padding: 0.75rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 0.5rem; cursor: pointer;">
+                        <span id="coupon-loading" class="htmx-indicator" style="display: none;">⏳</span>
+                        Kupon Oluştur
+                    </button>
+                </div>
+            </form>
+        `
+    }) %>
+
+    <!-- Edit Coupon Modal -->
+    <%- include('../partials/components/modal', {
+        id: 'editCouponModal',
+        title: 'Kupon Düzenle',
+        size: 'md',
+        content: `
+            <form id="editCouponForm" hx-trigger="submit" hx-swap="none" hx-indicator="#edit-coupon-loading">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Kupon Kodu *</label>
+                        <input type="text" 
+                               name="code" 
+                               required 
+                               placeholder="örn: INDIRIM20" 
+                               style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-family: 'Courier New', monospace; text-transform: uppercase;"
+                               maxlength="50">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Kupon Tipi *</label>
+                        <select name="type" 
+                                required 
+                                style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem;"
+                                onchange="toggleEditAmountLabel(this.value)">
+                            <option value="percentage">Yüzde İndirim (%)</option>
+                            <option value="fixed">Sabit Tutar İndirim (₺)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label id="editAmountLabel" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">İndirim Tutarı (%) *</label>
+                        <input type="number" 
+                               name="amount" 
+                               required 
+                               placeholder="20" 
+                               min="0.01"
+                               max="100"
+                               step="0.01"
+                               style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Minimum Sepet Tutarı (₺)</label>
+                        <input type="number" 
+                               name="min_cart_total" 
+                               placeholder="0" 
+                               min="0"
+                               step="0.01"
+                               style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem;">
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Bitiş Tarihi</label>
+                        <input type="datetime-local" 
+                               name="expires_at" 
+                               style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Durum</label>
+                        <select name="status" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem;">
+                            <option value="active">Aktif</option>
+                            <option value="inactive">Pasif</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" 
+                            data-action="close-modal" 
+                            style="padding: 0.75rem 1.5rem; background: #f3f4f6; color: #374151; border: none; border-radius: 0.5rem; cursor: pointer;">
+                        İptal
+                    </button>
+                    <button type="submit" 
+                            style="padding: 0.75rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 0.5rem; cursor: pointer;">
+                        <span id="edit-coupon-loading" class="htmx-indicator" style="display: none;">⏳</span>
+                        Kaydet
+                    </button>
+                </div>
+            </form>
+        `
+    }) %>
+
+    <!-- JavaScript -->
+    <script src="/js/dashboard.js"></script>
+    <script>
+        // Initialize Dashboard App
+        const app = new DashboardApp();
+
+        // Form label toggle functions
+        function toggleAmountLabel(type) {
+            const label = document.getElementById('amountLabel');
+            const input = document.querySelector('#addCouponForm input[name="amount"]');
+            if (type === 'percentage') {
+                label.textContent = 'İndirim Yüzdesi (%) *';
+                input.max = '100';
+                input.placeholder = '20';
+            } else {
+                label.textContent = 'İndirim Tutarı (₺) *';
+                input.max = '999999';
+                input.placeholder = '50';
+            }
+        }
+        
+        function toggleEditAmountLabel(type) {
+            const label = document.getElementById('editAmountLabel');
+            const input = document.querySelector('#editCouponForm input[name="amount"]');
+            if (type === 'percentage') {
+                label.textContent = 'İndirim Yüzdesi (%) *';
+                input.max = '100';
+            } else {
+                label.textContent = 'İndirim Tutarı (₺) *';
+                input.max = '999999';
+            }
+        }
+
+        // HTMX Event Listeners
+        document.body.addEventListener('htmx:beforeRequest', function(evt) {
+            console.log('HTMX Request starting:', evt.detail);
+        });
+
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            console.log('HTMX Request completed:', evt.detail);
+            
+            if (evt.detail.xhr.status === 200 || evt.detail.xhr.status === 201) {
+                try {
+                    const response = JSON.parse(evt.detail.xhr.responseText);
+                    if (response.success) {
+                        app.showToast(response.message, 'success');
+                        if (response.reload) {
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        }
+                        // Close any open modals
+                        app.closeModal('addCouponModal');
+                        app.closeModal('editCouponModal');
+                    } else {
+                        app.showToast(response.message || 'Bir hata oluştu', 'error');
+                    }
+                } catch (e) {
+                    console.error('Response parsing error:', e);
+                }
+            } else {
+                app.showToast('İşlem başarısız oldu', 'error');
+            }
+        });
+
+        // Form auto-submit on code input (uppercase conversion)
+        document.addEventListener('input', function(e) {
+            if (e.target.name === 'code') {
+                e.target.value = e.target.value.toUpperCase();
+            }
+        });
+    </script>
+</body>
+</html>

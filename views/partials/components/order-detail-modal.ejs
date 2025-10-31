@@ -1,0 +1,237 @@
+<%# 
+Order Detail Modal Component
+Parameters:
+- order: Order object with all details
+- modalId: Modal element ID (default: 'orderDetailModal')
+%>
+
+<div class="modal" id="<%= modalId || 'orderDetailModal' %>">
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <h3 class="modal-title">📋 Sipariş Detayları</h3>
+            <button class="modal-close" data-action="close-modal" data-modal="<%= modalId || 'orderDetailModal' %>">✕</button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="order-detail-grid">
+                <!-- Sipariş Bilgileri -->
+                <div class="detail-section">
+                    <div class="section-header">
+                        <h4><span class="section-icon">📋</span> Sipariş Bilgileri</h4>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Sipariş ID:</label>
+                            <span class="detail-value">#<span id="detail-order-id">-</span></span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Müşteri Adı:</label>
+                            <span class="detail-value" id="detail-customer-name">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>E-posta:</label>
+                            <span class="detail-value" id="detail-customer-email">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Toplam Tutar:</label>
+                            <span class="detail-value amount" id="detail-total-amount">₺0</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Durum:</label>
+                            <span class="detail-value">
+                                <span class="status-badge" id="detail-status">-</span>
+                            </span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Sipariş Tarihi:</label>
+                            <span class="detail-value" id="detail-created-at">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fatura Bilgileri -->
+                <div class="detail-section">
+                    <div class="section-header">
+                        <h4><span class="section-icon">📄</span> Fatura Bilgileri</h4>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Fatura Tipi:</label>
+                            <span class="detail-value" id="detail-invoice-type">-</span>
+                        </div>
+                        <div class="detail-item" id="invoice-title-item" style="display: none;">
+                            <label>Fatura Başlığı:</label>
+                            <span class="detail-value" id="detail-invoice-title">-</span>
+                        </div>
+                        <div class="detail-item" id="tax-number-item" style="display: none;">
+                            <label>Vergi Numarası:</label>
+                            <span class="detail-value" id="detail-tax-number">-</span>
+                        </div>
+                        <div class="detail-item" id="tax-office-item" style="display: none;">
+                            <label>Vergi Dairesi:</label>
+                            <span class="detail-value" id="detail-tax-office">-</span>
+                        </div>
+                        <div class="detail-item full-width" id="invoice-address-item" style="display: none;">
+                            <label>Fatura Adresi:</label>
+                            <span class="detail-value" id="detail-invoice-address">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kargo Bilgileri -->
+                <div class="detail-section">
+                    <div class="section-header">
+                        <h4><span class="section-icon">🚚</span> Kargo Bilgileri</h4>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Kargo Firması:</label>
+                            <span class="detail-value" id="detail-shipping-company">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Takip Numarası:</label>
+                            <span class="detail-value" id="detail-tracking-number">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Tahmini Teslim:</label>
+                            <span class="detail-value" id="detail-estimated-delivery">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" 
+                    class="btn btn-outline" 
+                    data-action="close-modal" 
+                    data-modal="<%= modalId || 'orderDetailModal' %>">
+                Kapat
+            </button>
+            <button type="button" 
+                    class="btn btn-primary" 
+                    data-action="edit-order" 
+                    id="edit-order-from-detail">
+                <span class="btn-icon">✏️</span>
+                Düzenle
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.order-detail-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.detail-section {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+}
+
+.section-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.section-header h4 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-icon {
+    font-size: 1.25rem;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.detail-item.full-width {
+    grid-column: 1 / -1;
+}
+
+.detail-item label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #6b7280;
+}
+
+.detail-value {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.detail-value.amount {
+    font-weight: 700;
+    color: #059669;
+    font-size: 1.125rem;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: white;
+}
+
+.status-pending {
+    background: #f59e0b;
+}
+
+.status-processing {
+    background: #3b82f6;
+}
+
+.status-shipped {
+    background: #6366f1;
+}
+
+.status-delivered {
+    background: #10b981;
+}
+
+.status-cancelled {
+    background: #ef4444;
+}
+
+.modal-lg .modal-content {
+    max-width: 900px;
+    width: 95%;
+}
+
+@media (max-width: 768px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .order-detail-grid {
+        gap: 1rem;
+    }
+    
+    .detail-section {
+        padding: 1rem;
+    }
+}
+</style> 

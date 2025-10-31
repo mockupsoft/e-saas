@@ -1,0 +1,63 @@
+<%# 
+Button Component
+Parameters:
+- type: 'button', 'submit', 'reset' (default: 'button')
+- variant: 'primary', 'secondary', 'outline', 'danger', 'success' (default: 'primary')
+- size: 'sm', 'md', 'lg' (default: 'md')
+- text: Button text
+- icon: Icon before text (emoji or HTML)
+- action: data-action attribute
+- href: If provided, renders as link instead of button
+- target: Link target (_blank, _self)
+- disabled: Boolean for disabled state
+- loading: Boolean for loading state
+- className: Additional CSS classes
+- attributes: Additional HTML attributes object
+%>
+
+<%
+const variantClass = `btn-${typeof variant !== 'undefined' ? variant : 'primary'}`;
+const sizeClass = typeof size !== 'undefined' && size !== 'md' ? `btn-${size}` : '';
+const classes = ['btn', variantClass, sizeClass, typeof className !== 'undefined' ? className : ''].filter(Boolean).join(' ');
+const isLink = typeof href !== 'undefined';
+const Tag = isLink ? 'a' : 'button';
+%>
+
+<% if (isLink) { %>
+<a 
+    class="<%= classes %> <%= typeof disabled !== 'undefined' && disabled ? 'btn-disabled' : '' %>"
+    href="<%= href %>"
+    <% if (typeof target !== 'undefined') { %>target="<%= target %>"<% } %>
+    <% if (typeof action !== 'undefined') { %>data-action="<%= action %>"<% } %>
+    <% if (typeof disabled !== 'undefined' && disabled) { %>aria-disabled="true"<% } %>
+    <% if (typeof attributes !== 'undefined') { %>
+        <% Object.keys(attributes).forEach(function(attr) { %>
+            <%= attr %>="<%= attributes[attr] %>"
+        <% }); %>
+    <% } %>>
+    <% if (typeof loading !== 'undefined' && loading) { %>
+        <span class="btn-spinner">⏳</span>
+    <% } else if (typeof icon !== 'undefined') { %>
+        <span class="btn-icon"><%= icon %></span>
+    <% } %>
+    <%= typeof text !== 'undefined' ? text : '' %>
+</a>
+<% } else { %>
+<button 
+    type="<%= typeof type !== 'undefined' ? type : 'button' %>"
+    class="<%= classes %>"
+    <% if (typeof action !== 'undefined') { %>data-action="<%= action %>"<% } %>
+    <% if (typeof disabled !== 'undefined' && disabled || typeof loading !== 'undefined' && loading) { %>disabled<% } %>
+    <% if (typeof attributes !== 'undefined') { %>
+        <% Object.keys(attributes).forEach(function(attr) { %>
+            <%= attr %>="<%= attributes[attr] %>"
+        <% }); %>
+    <% } %>>
+    <% if (typeof loading !== 'undefined' && loading) { %>
+        <span class="btn-spinner">⏳</span>
+    <% } else if (typeof icon !== 'undefined') { %>
+        <span class="btn-icon"><%= icon %></span>
+    <% } %>
+    <%= typeof text !== 'undefined' ? text : '' %>
+</button>
+<% } %> 

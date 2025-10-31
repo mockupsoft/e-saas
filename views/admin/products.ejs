@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Süper Admin - Ürün Yönetimi</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+</head>
+<body class="admin">
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span class="logo-text">Süper Admin</span>
+                </div>
+                <button class="sidebar-toggle">✕</button>
+            </div>
+            
+            <div class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Ana Menü</div>
+                    <div class="nav-item">
+                        <a href="/admin/dashboard" class="nav-link">
+                            <div class="nav-icon">📊</div>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/tenants" class="nav-link">
+                            <div class="nav-icon">👥</div>
+                            <span class="nav-text">Tenant Yönetimi</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/products" class="nav-link active">
+                            <div class="nav-icon">📦</div>
+                            <span class="nav-text">Ürün Yönetimi</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">İzleme</div>
+                    <div class="nav-item">
+                        <a href="/admin/analytics" class="nav-link">
+                            <div class="nav-icon">📈</div>
+                            <span class="nav-text">Analytics</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="/admin/logs" class="nav-link">
+                            <div class="nav-icon">📋</div>
+                            <span class="nav-text">Sistem Logları</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Mobil</div>
+                    <div class="nav-item">
+                        <a href="/admin/mobile" class="nav-link">
+                            <div class="nav-icon">📱</div>
+                            <span class="nav-text">Mobil Uygulama</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">📦 Ürün Yönetimi</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <!-- Tenant Filter -->
+                        <%- include('../partials/components/form-group', {
+                            id: 'tenant_filter',
+                            name: 'tenant_filter',
+                            type: 'select',
+                            options: [
+                                { value: '', text: 'Tüm Tenant\'lar' },
+                                ...tenants.map(t => ({ value: t.id, text: t.name }))
+                            ],
+                            attributes: {
+                                'hx-get': '/admin/api/products',
+                                'hx-target': '#productsTable tbody',
+                                'hx-swap': 'outerHTML',
+                                'hx-trigger': 'change'
+                            }
+                        }) %>
+                        <span class="total-count"><%= totalProducts %> Ürün</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Stats Cards -->
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-number"><%= totalProducts %></div>
+                        <div class="stat-label">Toplam Ürün</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏢</div>
+                        <div class="stat-number"><%= tenants.length %></div>
+                        <div class="stat-label">Aktif Tenant</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⚠️</div>
+                        <div class="stat-number"><%= lowStockCount %></div>
+                        <div class="stat-label">Düşük Stok</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-number">₺<%= totalValue.toLocaleString('tr-TR') %></div>
+                        <div class="stat-label">Toplam Stok Değeri</div>
+                    </div>
+                </div>
+
+                <!-- Products Table -->
+                <%- include('../partials/components/table', {
+                    id: 'productsTable',
+                    title: 'Ürün Listesi',
+                    headers: [
+                        { text: 'ID', key: 'id' },
+                        { text: 'Tenant', key: 'tenant' },
+                        { text: 'Ürün Adı', key: 'name' },
+                        { text: 'Fiyat', key: 'price' },
+                        { text: 'Stok', key: 'stock_quantity' },
+                        { text: 'Durum', key: 'status' },
+                        { text: 'Oluşturma Tarihi', key: 'created_at' },
+                        { text: 'İşlemler', key: 'actions' }
+                    ],
+                    data: products.map(product => ({
+                        id: product.id,
+                        tenant: `<span style="font-size: 0.875rem; background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">${product.tenant_name}</span>`,
+                        name: `<strong>${product.name}</strong>`,
+                        price: `₺${parseFloat(product.price).toLocaleString('tr-TR')}`,
+                        stock_quantity: product.stock_quantity <= 5 ? 
+                            `<span style="color: #dc2626; font-weight: 600;">${product.stock_quantity}</span>` : 
+                            product.stock_quantity,
+                        status: `<%- include('../partials/components/status-badge', {
+                            status: '${product.status}',
+                            text: '${product.status === 'active' ? 'Aktif' : 'Pasif'}'
+                        }) %>`,
+                        created_at: new Date(product.created_at).toLocaleDateString('tr-TR'),
+                        actions: `
+                            <div style="display: flex; gap: 0.5rem;">
+                                <a href="/${product.tenant_domain}/products" target="_blank" 
+                                   class="btn-sm btn-outline">
+                                    👁️ Görüntüle
+                                </a>
+                                <%- include('../partials/components/button', {
+                                    type: 'outline',
+                                    text: 'Detay',
+                                    icon: 'ℹ️',
+                                    size: 'sm',
+                                    action: 'view-product-detail',
+                                    attributes: { 
+                                        'data-product-id': '${product.id}',
+                                        'data-tenant-id': '${product.tenant_id}'
+                                    }
+                                }) %>
+                            </div>
+                        `
+                    })),
+                    emptyState: {
+                        icon: '📦',
+                        title: 'Henüz ürün bulunmuyor',
+                        description: 'Tenant\'lar ürün eklemeye başladığında burada görünecek.',
+                        action: null
+                    }
+                }) %>
+            </div>
+        </main>
+    </div>
+
+    <!-- Product Detail Modal -->
+    <%- include('../partials/components/modal', {
+        id: 'productDetailModal',
+        title: 'Ürün Detayı',
+        size: 'lg',
+        content: `
+            <div class="modal-body">
+                <div id="productDetailContent">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <%- include('../partials/components/button', {
+                    type: 'secondary',
+                    text: 'Kapat',
+                    action: 'close-product-detail-modal'
+                }) %>
+            </div>
+        `
+    }) %>
+
+    <!-- Scripts -->
+    <script src="/js/ui.js"></script>
+    <script src="/js/dashboard.js"></script>
+    <script>
+        // Initialize admin product management
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof window.initializeAdminProductManagement === 'function') {
+                window.initializeAdminProductManagement();
+            }
+        });
+    </script>
+</body>
+</html> 

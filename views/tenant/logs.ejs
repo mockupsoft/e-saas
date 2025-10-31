@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= tenantName %> - Aktivite Logları</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+    <style>
+        .logs-filters {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+        
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        
+        .filter-input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+        
+        .logs-table {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .log-row {
+            border-bottom: 1px solid #e5e7eb;
+            transition: all 0.2s ease;
+        }
+        
+        .log-row:hover {
+            background-color: #f9fafb;
+        }
+        
+        .action-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .action-create { background: #d1fae5; color: #065f46; }
+        .action-update { background: #dbeafe; color: #1e40af; }
+        .action-delete { background: #fee2e2; color: #dc2626; }
+        .action-login { background: #f3e8ff; color: #7c2d12; }
+        .action-logout { background: #f1f5f9; color: #475569; }
+        .action-view { background: #fef3c7; color: #92400e; }
+        
+        .target-type {
+            font-family: 'Courier New', monospace;
+            background: #f3f4f6;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        
+        .metadata-preview {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .pagination button {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            background: white;
+            color: #374151;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .pagination button:hover:not(:disabled) {
+            background: #f3f4f6;
+        }
+        
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .pagination .current-page {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .log-detail-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .log-detail-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .log-detail-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        
+        .metadata-json {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+        
+        .filter-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: end;
+        }
+    </style>
+</head>
+<body class="tenant">
+    <div class="dashboard-layout">
+        <%- include('../partials/tenant-navigation', { activePage: 'logs' }) %>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1 class="page-title">📋 Aktivite Logları</h1>
+                <div class="top-bar-actions">
+                    <button class="mobile-menu-btn">☰</button>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span id="total-logs-count">Yükleniyor...</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                
+                <!-- Filters -->
+                <div class="logs-filters">
+                    <h3 style="margin: 0 0 1rem 0; color: #111827;">Filtreler</h3>
+                    
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label class="filter-label">İşlem Türü</label>
+                            <select id="actionTypeFilter" class="filter-input">
+                                <option value="">Tümü</option>
+                                <option value="create">Oluştur</option>
+                                <option value="update">Güncelle</option>
+                                <option value="delete">Sil</option>
+                                <option value="login">Giriş</option>
+                                <option value="logout">Çıkış</option>
+                                <option value="view">Görüntüle</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label">Modül</label>
+                            <select id="targetTypeFilter" class="filter-input">
+                                <option value="">Tümü</option>
+                                <option value="product">Ürün</option>
+                                <option value="order">Sipariş</option>
+                                <option value="customer">Müşteri</option>
+                                <option value="coupon">Kupon</option>
+                                <option value="staff">Personel</option>
+                                <option value="category">Kategori</option>
+                                <option value="affiliate">Affiliate</option>
+                                <option value="login">Giriş</option>
+                            </select>
+                        </div>
+                        
+                        <% if (currentUserRole === 'admin' && staffList.length > 0) { %>
+                        <div class="filter-group">
+                            <label class="filter-label">Kullanıcı</label>
+                            <select id="userFilter" class="filter-input">
+                                <option value="">Tümü</option>
+                                <% staffList.forEach(staff => { %>
+                                <option value="<%= staff.id %>"><%= staff.name %> (<%= staff.email %>)</option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <% } %>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label">Başlangıç Tarihi</label>
+                            <input type="date" id="dateFromFilter" class="filter-input">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label">Bitiş Tarihi</label>
+                            <input type="date" id="dateToFilter" class="filter-input">
+                        </div>
+                    </div>
+                    
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label class="filter-label">Arama</label>
+                            <input type="text" id="searchFilter" class="filter-input" placeholder="Email, işlem, detay ara...">
+                        </div>
+                        
+                        <div class="filter-actions">
+                            <button id="applyFilters" class="btn btn-primary">Filtrele</button>
+                            <button id="clearFilters" class="btn btn-outline">Temizle</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logs Table -->
+                <div class="logs-table">
+                    <div class="loading-spinner" id="loadingSpinner">
+                        <div style="font-size: 2rem;">⏳</div>
+                        <p>Loglar yükleniyor...</p>
+                    </div>
+                    
+                    <div id="logsTableContent">
+                        <!-- HTMX ile yüklenecek -->
+                    </div>
+                    
+                    <div class="empty-state" id="emptyState" style="display: none;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
+                        <h3>Henüz aktivite logu bulunmuyor</h3>
+                        <p>Seçilen kriterlere uygun log kaydı bulunamadı.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Log Detail Modal -->
+    <div class="log-detail-modal" id="logDetailModal">
+        <div class="log-detail-content">
+            <button class="log-detail-close" onclick="closeLogDetailModal()">✕</button>
+            <div id="logDetailContent">
+                <!-- Dinamik olarak doldurulacak -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentPage = 1;
+        let totalPages = 1;
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadLogs();
+            setupEventListeners();
+        });
+        
+        function setupEventListeners() {
+            // Filter event listeners
+            document.getElementById('applyFilters').addEventListener('click', function() {
+                currentPage = 1;
+                loadLogs();
+            });
+            
+            document.getElementById('clearFilters').addEventListener('click', function() {
+                clearAllFilters();
+                currentPage = 1;
+                loadLogs();
+            });
+            
+            // Enter key on search
+            document.getElementById('searchFilter').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    currentPage = 1;
+                    loadLogs();
+                }
+            });
+        }
+        
+        function loadLogs() {
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const logsTableContent = document.getElementById('logsTableContent');
+            const emptyState = document.getElementById('emptyState');
+            
+            // Show loading
+            loadingSpinner.style.display = 'block';
+            logsTableContent.innerHTML = '';
+            emptyState.style.display = 'none';
+            
+            // Get filter values
+            const filters = getFilterValues();
+            
+            // Build query string
+            const queryParams = new URLSearchParams({
+                page: currentPage,
+                limit: 50,
+                ...filters
+            });
+            
+            // Make API call
+            fetch(`/${window.location.pathname.split('/')[1]}/api/logs?${queryParams}`)
+                .then(response => response.json())
+                .then(data => {
+                    loadingSpinner.style.display = 'none';
+                    
+                    if (data.success) {
+                        if (data.data.logs.length === 0) {
+                            emptyState.style.display = 'block';
+                        } else {
+                            renderLogsTable(data.data.logs);
+                            renderPagination(data.data.pagination);
+                        }
+                        
+                        // Update total count
+                        document.getElementById('total-logs-count').textContent = 
+                            `${data.data.pagination.totalCount} Log`;
+                    } else {
+                        showError('Loglar yüklenirken hata oluştu: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    loadingSpinner.style.display = 'none';
+                    console.error('Log loading error:', error);
+                    showError('Bağlantı hatası oluştu');
+                });
+        }
+        
+        function getFilterValues() {
+            return {
+                actionType: document.getElementById('actionTypeFilter').value || '',
+                targetType: document.getElementById('targetTypeFilter').value || '',
+                userId: document.getElementById('userFilter')?.value || '',
+                dateFrom: document.getElementById('dateFromFilter').value || '',
+                dateTo: document.getElementById('dateToFilter').value || '',
+                search: document.getElementById('searchFilter').value || ''
+            };
+        }
+        
+        function clearAllFilters() {
+            document.getElementById('actionTypeFilter').value = '';
+            document.getElementById('targetTypeFilter').value = '';
+            if (document.getElementById('userFilter')) {
+                document.getElementById('userFilter').value = '';
+            }
+            document.getElementById('dateFromFilter').value = '';
+            document.getElementById('dateToFilter').value = '';
+            document.getElementById('searchFilter').value = '';
+        }
+        
+        function renderLogsTable(logs) {
+            const content = `
+                <table style="width: 100%;">
+                    <thead style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                        <tr>
+                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Tarih</th>
+                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">İşlem</th>
+                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Kullanıcı</th>
+                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Modül</th>
+                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">Detay</th>
+                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">IP Adresi</th>
+                            <th style="padding: 1rem; text-align: left; font-weight: 600; color: #374151;">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${logs.map(log => `
+                            <tr class="log-row">
+                                <td style="padding: 1rem; font-size: 0.875rem; color: #6b7280;">
+                                    ${formatDate(log.created_at)}
+                                </td>
+                                <td style="padding: 1rem;">
+                                    <span class="action-badge action-${log.action_type}">
+                                        ${getActionText(log.action_type)}
+                                    </span>
+                                </td>
+                                <td style="padding: 1rem;">
+                                    <div>
+                                        ${log.user_email || 'Sistem'}
+                                    </div>
+                                    ${log.user_id ? `<div style="font-size: 0.75rem; color: #6b7280;">ID: ${log.user_id}</div>` : ''}
+                                </td>
+                                <td style="padding: 1rem;">
+                                    <span class="target-type">${getTargetText(log.target_type)}</span>
+                                    ${log.target_id ? `<div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">ID: ${log.target_id}</div>` : ''}
+                                </td>
+                                <td style="padding: 1rem;">
+                                    <div class="metadata-preview" title="${log.metadata ? JSON.stringify(log.metadata, null, 2) : 'Detay yok'}">
+                                        ${getMetadataPreview(log.metadata)}
+                                    </div>
+                                </td>
+                                <td style="padding: 1rem; font-size: 0.875rem; color: #6b7280;">
+                                    ${log.ip_address || '-'}
+                                </td>
+                                <td style="padding: 1rem;">
+                                    <button onclick="showLogDetail(${log.id})" 
+                                            class="btn btn-sm btn-outline" 
+                                            style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                        👁️ Detay
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('logsTableContent').innerHTML = content;
+        }
+        
+        function renderPagination(pagination) {
+            totalPages = pagination.totalPages;
+            currentPage = pagination.currentPage;
+            
+            const paginationHtml = `
+                <button onclick="goToPage(${currentPage - 1})" 
+                        ${!pagination.hasPrevPage ? 'disabled' : ''}>
+                    ← Önceki
+                </button>
+                
+                <span style="padding: 0.5rem 1rem; color: #374151;">
+                    Sayfa ${currentPage} / ${totalPages}
+                </span>
+                
+                <button onclick="goToPage(${currentPage + 1})" 
+                        ${!pagination.hasNextPage ? 'disabled' : ''}>
+                    Sonraki →
+                </button>
+            `;
+            
+            document.getElementById('logsTableContent').innerHTML += `
+                <div class="pagination">${paginationHtml}</div>
+            `;
+        }
+        
+        function goToPage(page) {
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                loadLogs();
+            }
+        }
+        
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('tr-TR') + ' ' + date.toLocaleTimeString('tr-TR');
+        }
+        
+        function getActionText(actionType) {
+            const actions = {
+                'create': 'Oluştur',
+                'update': 'Güncelle', 
+                'delete': 'Sil',
+                'login': 'Giriş',
+                'logout': 'Çıkış',
+                'view': 'Görüntüle'
+            };
+            return actions[actionType] || actionType;
+        }
+        
+        function getTargetText(targetType) {
+            const targets = {
+                'product': 'Ürün',
+                'order': 'Sipariş',
+                'customer': 'Müşteri',
+                'coupon': 'Kupon',
+                'staff': 'Personel',
+                'category': 'Kategori',
+                'affiliate': 'Affiliate',
+                'login': 'Giriş'
+            };
+            return targets[targetType] || targetType;
+        }
+        
+        function getMetadataPreview(metadata) {
+            if (!metadata) return '-';
+            
+            // Common metadata previews
+            if (metadata.staff_name) return `Personel: ${metadata.staff_name}`;
+            if (metadata.success !== undefined) return metadata.success ? 'Başarılı' : 'Başarısız';
+            if (metadata.updated_fields) return `Güncellenen: ${metadata.updated_fields.join(', ')}`;
+            
+            // Fallback to first few chars of JSON
+            const jsonStr = JSON.stringify(metadata);
+            return jsonStr.length > 50 ? jsonStr.substring(0, 50) + '...' : jsonStr;
+        }
+        
+        function showLogDetail(logId) {
+            // Find log in current data (could also make API call)
+            const logs = getCurrentLogsData();
+            const log = logs.find(l => l.id === logId);
+            
+            if (!log) return;
+            
+            const detailHtml = `
+                <h3 style="margin: 0 0 1rem 0;">Log Detayları</h3>
+                
+                <div style="display: grid; gap: 1rem;">
+                    <div>
+                        <strong>ID:</strong> ${log.id}
+                    </div>
+                    <div>
+                        <strong>Tarih:</strong> ${formatDate(log.created_at)}
+                    </div>
+                    <div>
+                        <strong>İşlem:</strong> 
+                        <span class="action-badge action-${log.action_type}">
+                            ${getActionText(log.action_type)}
+                        </span>
+                    </div>
+                    <div>
+                        <strong>Modül:</strong> <span class="target-type">${getTargetText(log.target_type)}</span>
+                        ${log.target_id ? ` (ID: ${log.target_id})` : ''}
+                    </div>
+                    <div>
+                        <strong>Kullanıcı:</strong> ${log.user_email || 'Sistem'}
+                        ${log.user_id ? ` (ID: ${log.user_id})` : ''}
+                    </div>
+                    <div>
+                        <strong>IP Adresi:</strong> ${log.ip_address || '-'}
+                    </div>
+                    <div>
+                        <strong>User Agent:</strong> 
+                        <div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.25rem; word-break: break-all;">
+                            ${log.user_agent || '-'}
+                        </div>
+                    </div>
+                    ${log.metadata ? `
+                    <div>
+                        <strong>Metadata:</strong>
+                        <div class="metadata-json">${JSON.stringify(log.metadata, null, 2)}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            document.getElementById('logDetailContent').innerHTML = detailHtml;
+            document.getElementById('logDetailModal').style.display = 'flex';
+        }
+        
+        function closeLogDetailModal() {
+            document.getElementById('logDetailModal').style.display = 'none';
+        }
+        
+        function getCurrentLogsData() {
+            // This would store current logs data - simplified for demo
+            return window.currentLogsData || [];
+        }
+        
+        function showError(message) {
+            alert('Hata: ' + message);
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('logDetailModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeLogDetailModal();
+            }
+        });
+    </script>
+
+    <script src="/js/ui.js"></script>
+    <script src="/js/dashboard.js"></script>
+</body>
+</html> 

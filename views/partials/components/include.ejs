@@ -1,0 +1,81 @@
+<%# 
+Component Include Helper
+Helper functions for including components with proper parameters
+
+Usage in templates:
+<%- include('../partials/components/modal', { 
+    id: 'myModal', 
+    title: 'Title', 
+    content: '<p>Content</p>',
+    buttons: [{text: 'Save', type: 'submit', class: 'btn-primary'}]
+}) %>
+%>
+
+<%
+// Helper function to render status badge
+function renderStatusBadge(status, text, size, className) {
+    return include('./status-badge', { status, text, size, className });
+}
+
+// Helper function to render button
+function renderButton(options) {
+    return include('./button', options);
+}
+
+// Helper function to render form group
+function renderFormGroup(options) {
+    return include('./form-group', options);
+}
+
+// Helper function to render table
+function renderTable(options) {
+    return include('./table', options);
+}
+
+// Helper function to render modal
+function renderModal(options) {
+    return include('./modal', options);
+}
+
+// Export helpers to global scope for template use
+if (typeof global !== 'undefined') {
+    global.renderStatusBadge = renderStatusBadge;
+    global.renderButton = renderButton;
+    global.renderFormGroup = renderFormGroup;
+    global.renderTable = renderTable;
+    global.renderModal = renderModal;
+}
+%>
+
+<%# Common CSS and JS includes %>
+<% function includeComponentAssets() { %>
+<!-- Component Styles -->
+<link rel="stylesheet" href="/css/components.css">
+
+<!-- Component Scripts -->
+<script src="/js/ui.js"></script>
+<% } %>
+
+<%# Common head includes for all pages %>
+<% function includeCommonHead() { %>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/css/dashboard.css">
+<link rel="stylesheet" href="/css/components.css">
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+<% } %>
+
+<%# Common scripts for all pages %>
+<% function includeCommonScripts() { %>
+<script src="/js/ui.js"></script>
+<script src="/js/dashboard.js"></script>
+<% } %>
+
+<%
+// Export common functions
+if (typeof global !== 'undefined') {
+    global.includeComponentAssets = includeComponentAssets;
+    global.includeCommonHead = includeCommonHead;
+    global.includeCommonScripts = includeCommonScripts;
+}
+%> 
