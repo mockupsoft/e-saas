@@ -900,16 +900,16 @@ router.post('/api/orders', async (req, res) => {
                             <span class="badge ${statusBadgeClass}">${statusText}</span>
                         </td>
                         <td style="padding: 1rem; color: #6b7280;">${new Date(order.created_at).toLocaleDateString('tr-TR')}</td>
-                        <td style="padding: 1rem;">
-                            <div style="display: flex; gap: 0.5rem;">
-                                <button class="btn btn-outline btn-sm" data-action="view-order-detail" data-order-id="${order.id}">
-                                    <span class="btn-icon">👁️</span> Detay
+                        <td style="padding: 1rem;" class="actions-cell">
+                            <div class="action-buttons" style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center; justify-content: flex-end; flex-wrap: nowrap;">
+                                <button class="btn btn-outline btn-sm action-btn" data-action="view-order-detail" data-order-id="${order.id}" title="Detayları Görüntüle" style="min-width: 36px; width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                    <span class="btn-icon" style="margin: 0; font-size: 1rem;">👁️</span>
                                 </button>
-                                <button class="btn btn-outline btn-sm" data-action="edit-order" data-order-id="${order.id}">
-                                    <span class="btn-icon">✏️</span> Düzenle
+                                <button class="btn btn-outline btn-sm action-btn" data-action="edit-order" data-order-id="${order.id}" title="Düzenle" style="min-width: 36px; width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                    <span class="btn-icon" style="margin: 0; font-size: 1rem;">✏️</span>
                                 </button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteOrder(${order.id})" style="margin-left: 0.25rem;">
-                                    <span class="btn-icon">🗑️</span> Sil
+                                <button class="btn btn-danger btn-sm action-btn" onclick="deleteOrder(${order.id})" title="Sil" style="min-width: 36px; width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                    <span class="btn-icon" style="margin: 0; font-size: 1rem;">🗑️</span>
                                 </button>
                             </div>
                         </td>
@@ -997,16 +997,16 @@ router.put('/api/orders/:id', async (req, res) => {
                             <span class="badge ${statusBadgeClass}">${statusText}</span>
                         </td>
                         <td style="padding: 1rem; color: #6b7280;">${new Date(order.created_at).toLocaleDateString('tr-TR')}</td>
-                        <td style="padding: 1rem;">
-                            <div style="display: flex; gap: 0.5rem;">
-                                <button class="btn btn-outline btn-sm" data-action="view-order-detail" data-order-id="${order.id}">
-                                    <span class="btn-icon">👁️</span> Detay
+                        <td style="padding: 1rem;" class="actions-cell">
+                            <div class="action-buttons" style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center; justify-content: flex-end; flex-wrap: nowrap;">
+                                <button class="btn btn-outline btn-sm action-btn" data-action="view-order-detail" data-order-id="${order.id}" title="Detayları Görüntüle" style="min-width: 36px; width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                    <span class="btn-icon" style="margin: 0; font-size: 1rem;">👁️</span>
                                 </button>
-                                <button class="btn btn-outline btn-sm" data-action="edit-order" data-order-id="${order.id}">
-                                    <span class="btn-icon">✏️</span> Düzenle
+                                <button class="btn btn-outline btn-sm action-btn" data-action="edit-order" data-order-id="${order.id}" title="Düzenle" style="min-width: 36px; width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                    <span class="btn-icon" style="margin: 0; font-size: 1rem;">✏️</span>
                                 </button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteOrder(${order.id})" style="margin-left: 0.25rem;">
-                                    <span class="btn-icon">🗑️</span> Sil
+                                <button class="btn btn-danger btn-sm action-btn" onclick="deleteOrder(${order.id})" title="Sil" style="min-width: 36px; width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                    <span class="btn-icon" style="margin: 0; font-size: 1rem;">🗑️</span>
                                 </button>
                             </div>
                         </td>
